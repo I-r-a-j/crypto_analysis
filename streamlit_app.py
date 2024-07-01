@@ -7,10 +7,12 @@ import matplotlib.pyplot as plt
 import plotly.graph_objs as go
 
 # Function to load data
+import yfinance as yf
+
 def load_data(symbols, start_date, end_date):
     dfs = {}
     for symbol in symbols:
-        df = yf.download(symbol, start=start_date, end=end_date)
+        df = yf.download(symbol, start=start_date, end=end_date, progress=False)
         df.columns = [col.lower().replace(' ', '_') for col in df.columns]
         dfs[symbol] = df
     return dfs
