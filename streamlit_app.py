@@ -95,7 +95,7 @@ def technical_analysis(df, analysis_type):
         fig.add_trace(go.Scatter(x=df.index, y=df['Lower Band'], mode='lines', name='Lower Bollinger Band'))
         fig.update_layout(title='Bollinger Bands', xaxis_title='Date', yaxis_title='Price')
         return fig
-elif analysis_type == 'On-Balance Volume (OBV)':
+    elif analysis_type == 'On-Balance Volume (OBV)':
         df['Price Change'] = df['close'].diff()
         df['Direction'] = df['Price Change'].apply(lambda x: 1 if x > 0 else (-1 if x < 0 else 0))
         df['OBV'] = (df['Direction'] * df['volume']).cumsum()
