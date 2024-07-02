@@ -191,6 +191,27 @@ def technical_analysis(df, analysis_type):
         ])
         fig.update_layout(title='Ichimoku Cloud', xaxis_title='Date', yaxis_title='Price')
         return fig
+    elif analysis_type == 'Engulfing Pattern':
+        df['Body'] = df['close'] - df['open']
+        engulfing_patterns = []
+        for i in range(1, len(df)):
+            current_candle = df.iloc[i]
+            previous_candle = df.iloc[i - 1]
+            if (current_candle['close'] > current_candle['open'] and
+                previous_candle['close'] < previous_candle['open'] and
+                current_candle['open'] < previous_candle['close'] and
+                current_candle['close'] > previous_candle['open']):
+                engulfing_patterns.append(current_candle.name)
+        
+        fig = go.Figure()
+        fig.add_trace(go.Scatter(x=df.index, y=df['Body'], mode='lines', name='Candle Body'))
+        fig.add_trace(go.Scatter(x=engulfing_patterns, y=df.loc[engulfing_patterns, 'Body'], 
+                                 mode='markers', name='Engulfing Pattern', 
+                                 marker=dict(color='red', size=10)))
+        fig.update_layout(title='Engulfing Pattern Analysis', 
+                          xaxis_title='Date', 
+                          yaxis_title='Body Size')
+        return fig
 
 # Streamlit app
 def main():
@@ -229,7 +250,7 @@ def main():
     st.subheader('Technical Analysis')
     analysis_options = ['Moving Averages', 'RSI', 'MACD', 'Bollinger Bands', 'On-Balance Volume (OBV)', 
                         'Exponential Moving Averages (EMA)', 'Stochastic Oscillator', 
-                        'Average Directional Index (ADX)', 'Ichimoku Cloud']
+                        'Average Directional Index (ADX)', 'Ichimoku Cloud', 'Engulfing Pattern']
     selected_analysis = st.selectbox('Select Technical Analysis', analysis_options)
 
     analysis_chart = technical_analysis(filtered_data, selected_analysis)
