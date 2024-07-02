@@ -95,6 +95,102 @@ def technical_analysis(df, analysis_type):
         fig.add_trace(go.Scatter(x=df.index, y=df['Lower Band'], mode='lines', name='Lower Bollinger Band'))
         fig.update_layout(title='Bollinger Bands', xaxis_title='Date', yaxis_title='Price')
         return fig
+elif analysis_type == 'On-Balance Volume (OBV)':
+        df['Price Change'] = df['close'].diff()
+        df['Direction'] = df['Price Change'].apply(lambda x: 1 if x > 0 else (-1 if x < 0 else 0))
+        df['OBV'] = (df['Direction'] * df['volume']).cumsum()
+        
+        fig = go.Figure()
+        fig.add_trace(go.Scatter(x=df.index, y=df['OBV'], mode='lines', name='OBV'))
+        fig.update_layout(title='On-Balance Volume (OBV)', xaxis_title='Date', yaxis_title='OBV')
+        return fig
+
+    elif analysis_type == 'Exponential Moving Averages (EMA)':
+        df['EMA20'] = df['close'].ewm(span=20, adjust=False).mean()
+        df['EMA50'] = df['close'].ewm(span=50, adjust=False).mean()
+        df['EMA100'] = df['close'].ewm(span=100, adjust=False).mean()
+        df['EMA200'] = df['close'].ewm(span=200, adjust=False).mean()
+        
+        fig = go.Figure()
+        fig.add_trace(go.Scatter(x=df.index, y=df['close'], mode='lines', name='Actual Data'))
+        fig.add_trace(go.Scatter(x=df.index, y=df['EMA20'], mode='lines', name='EMA20'))
+        fig.add_trace(go.Scatter(x=df.index, y=df['EMA50'], mode='lines', name='EMA50'))
+        fig.add_trace(go.Scatter(x=df.index, y=df['EMA100'], mode='lines', name='EMA100'))
+        fig.add_trace(go.Scatter(x=df.index, y=df['EMA200'], mode='lines', name='EMA200'))
+        fig.update_layout(title='Exponential Moving Averages (EMA)', xaxis_title='Date', yaxis_title='Price')
+        return fig
+
+    elif analysis_type == 'Stochastic Oscillator':
+        window = 14
+        smooth_window = 3
+        df['Lowest Low'] = df['low'].rolling(window=window).min()
+        df['Highest High'] = df['high'].rolling(window=window).max()
+        df['%K'] = ((df['close'] - df['Lowest Low']) / (df['Highest High'] - df['Lowest Low'])) * 100
+        df['%D'] = df['%K'].rolling(window=smooth_window).mean()
+        
+        fig = go.Figure()
+        fig.add_trace(go.Scatter(x=df.index, y=df['%K'], mode='lines', name='%K'))
+        fig.add_trace(go.Scatter(x=df.index, y=df['%D'], mode='lines', name='%D'))
+        fig.add_hline(y=80, line_dash="dash", line_color="red", annotation_text="Overbought")
+        fig.add_hline(y=20, line_dash="dash", line_color="green", annotation_text="Oversold")
+        fig.update_layout(title='Stochastic Oscillator', xaxis_title='Date', yaxis_title='Value')
+        return fig
+
+    elif analysis_type == 'Average Directional Index (ADX)':
+        window = 14
+        df['H-L'] = df['high'] - df['low']
+        df['H-PC'] = abs(df['high'] - df['close'].shift(1))
+        df['L-PC'] = abs(df['low'] - df['close'].shift(1))
+        df['TR'] = df[['H-L', 'H-PC', 'L-PC']].max(axis=1)
+        df['+DM'] = (df['high'] - df['high'].shift(1)).clip(lower=0)
+        df['-DM'] = (df['low'].shift(1) - df['low']).clip(lower=0)
+        df['TR14'] = df['TR'].rolling(window=window).sum()
+        df['+DM14'] = df['+DM'].rolling(window=window).sum()
+        df['-DM14'] = df['-DM'].rolling(window=window).sum()
+        df['+DI14'] = 100 * df['+DM14'] / df['TR14']
+        df['-DI14'] = 100 * df['-DM14'] / df['TR14']
+        df['DX'] = 100 * abs(df['+DI14'] - df['-DI14']) / (df['+DI14'] + df['-DI14'])
+        df['ADX'] = df['DX'].rolling(window=window).mean()
+        
+        fig = go.Figure()
+        fig.add_trace(go.Scatter(x=df.index, y=df['ADX'], mode='lines', name='ADX'))
+        fig.add_hline(y=25, line_dash="dash", line_color="green", annotation_text="Weak Trend")
+        fig.add_hline(y=50, line_dash="dash", line_color="orange", annotation_text="Strong Trend")
+        fig.add_hline(y=75, line_dash="dash", line_color="red", annotation_text="Very Strong Trend")
+        fig.update_layout(title='Average Directional Index (ADX)', xaxis_title='Date', yaxis_title='ADX')
+        return fig
+
+    elif analysis_type == 'Ichimoku Cloud':
+        df['Tenkan-sen'] = (df['high'].rolling(window=9).max() + df['low'].rolling(window=9).min()) / 2
+        df['Kijun-sen'] = (df['high'].rolling(window=26).max() + df['low'].rolling(window=26).min()) / 2
+        df['Senkou Span A'] = ((df['Tenkan-sen'] + df['Kijun-sen']) / 2).shift(26)
+        df['Senkou Span B'] = ((df['high'].rolling(window=52).max() + df['low'].rolling(window=52).min()) / 2).shift(26)
+        df['Chikou Span'] = df['close'].shift(-26)
+        
+        fig = go.Figure()
+        fig.add_trace(go.Scatter(x=df.index, y=df['close'], mode='lines', name='Close'))
+        fig.add_trace(go.Scatter(x=df.index, y=df['Tenkan-sen'], mode='lines', name='Tenkan-sen'))
+        fig.add_trace(go.Scatter(x=df.index, y=df['Kijun-sen'], mode='lines', name='Kijun-sen'))
+        fig.add_trace(go.Scatter(x=df.index, y=df['Senkou Span A'], mode='lines', name='Senkou Span A'))
+        fig.add_trace(go.Scatter(x=df.index, y=df['Senkou Span B'], mode='lines', name='Senkou Span B'))
+        fig.add_trace(go.Scatter(x=df.index, y=df['Chikou Span'], mode='lines', name='Chikou Span'))
+        fig.add_traces([
+            go.Scatter(
+                x=df.index, y=df['Senkou Span A'],
+                fill=None,
+                mode='lines',
+                line_color='rgba(0,0,0,0)',
+            ),
+            go.Scatter(
+                x=df.index, y=df['Senkou Span B'],
+                fill='tonexty',
+                mode='lines', 
+                line_color='rgba(0,0,0,0)',
+                fillcolor='rgba(255,200,200,0.2)',
+            ),
+        ])
+        fig.update_layout(title='Ichimoku Cloud', xaxis_title='Date', yaxis_title='Price')
+        return fig
 
 # Streamlit app
 def main():
@@ -131,7 +227,9 @@ def main():
 
     # Section 4: Technical Analysis
     st.subheader('Technical Analysis')
-    analysis_options = ['Moving Averages', 'RSI', 'MACD', 'Bollinger Bands']
+    analysis_options = ['Moving Averages', 'RSI', 'MACD', 'Bollinger Bands', 'On-Balance Volume (OBV)', 
+                        'Exponential Moving Averages (EMA)', 'Stochastic Oscillator', 
+                        'Average Directional Index (ADX)', 'Ichimoku Cloud']
     selected_analysis = st.selectbox('Select Technical Analysis', analysis_options)
 
     analysis_chart = technical_analysis(filtered_data, selected_analysis)
