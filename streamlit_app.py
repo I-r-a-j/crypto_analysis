@@ -235,10 +235,10 @@ def load_ml_models():
 
 # Download models from GitHub if not already downloaded
 model_urls = {
-    'btc_model.pkl': 'https://raw.githubusercontent.com/I-r-a-j/crypto_analysis/I-r-a-j/crypto_analysis/models/btc_model.pkl',
-    'eth_model.pkl': 'https://raw.githubusercontent.com/I-r-a-j/crypto_analysis/I-r-a-j/crypto_analysis/models/eth_model.pkl',
-    'ltc_model.pkl': 'https://raw.githubusercontent.com/I-r-a-j/crypto_analysis/I-r-a-j/crypto_analysis/models/ltc_model.pkl',
-    'doge_model.pkl': 'https://raw.githubusercontent.com/I-r-a-j/crypto_analysis/I-r-a-j/crypto_analysis/models/doge_model.pkl'
+    'btc_model.pkl': 'https://github.com/I-r-a-j/crypto_analysis/blob/main/btc_model.pkl',
+    'eth_model.pkl': 'https://github.com/I-r-a-j/crypto_analysis/blob/main/eth_model.pkl',
+    'ltc_model.pkl': 'https://github.com/I-r-a-j/crypto_analysis/blob/main/ltc_model.pkl',
+    'doge_model.pkl': 'https://github.com/I-r-a-j/crypto_analysis/blob/main/doge_model.pkl'
 }
 
 for model_name, url in model_urls.items():
