@@ -5,6 +5,8 @@ import plotly.graph_objects as go
 from datetime import datetime, timedelta
 import matplotlib.pyplot as plt
 import plotly.graph_objs as go
+import joblib
+from pycaret.time_series import load_model, predict_model
 
 # Function to load data
 import yfinance as yf
@@ -213,6 +215,19 @@ def technical_analysis(df, analysis_type):
                           yaxis_title='Body Size')
         return fig
 
+# Load models
+@st.cache(allow_output_mutation=True)
+def load_ml_models():
+    models = {
+        'BTC-USD': load_model('models/btc_model'),
+        'ETH-USD': load_model('models/eth_model'),
+        'LTC-USD': load_model('models/ltc_model'),
+        'DOGE-USD': load_model('models/doge_model')
+    }
+    return models
+
+models = load_ml_models()
+
 # Streamlit app
 def main():
     st.title('Crypto Analysis App')
@@ -255,6 +270,23 @@ def main():
 
     analysis_chart = technical_analysis(filtered_data, selected_analysis)
     st.plotly_chart(analysis_chart)
+
+    #Price predictions from pycaret models
+    st.subheader('Price Prediction')
+    prediction_date = st.date_input('Select date for prediction', min_value=datetime.now().date())
+    
+        if st.button('Predict Price'):
+            # Prepare data for prediction
+            last_data = filtered_data.iloc[-1].to_dict()
+            last_data['Date'] = prediction_date
+            predict_df = pd.DataFrame([last_data])
+        
+            # Make prediction
+            prediction = predict_model(models[selected_symbol], data=predict_df)
+            predicted_price = prediction['prediction_label'].iloc[0]
+        
+            st.write(f"Predicted price for {selected_symbol} on {prediction_date}: ${predicted_price:.2f}")
+
 
 if __name__ == '__main__':
     main()
