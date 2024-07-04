@@ -174,19 +174,19 @@ def load_ml_models():
     base_path = os.path.dirname(__file__)
     
     models = {
-        'BTC-USD': load_model(os.path.join(base_path, 'models', 'btc_model')),
-        'ETH-USD': load_model(os.path.join(base_path, 'models', 'eth_model')),
-        'LTC-USD': load_model(os.path.join(base_path, 'models', 'ltc_model')),
-        'DOGE-USD': load_model(os.path.join(base_path, 'models', 'doge_model'))
+        'BTC-USD': load_model(os.path.join(base_path, 'models', 'btc_model.pkl')),
+        'ETH-USD': load_model(os.path.join(base_path, 'models', 'eth_model.pkl')),
+        'LTC-USD': load_model(os.path.join(base_path, 'models', 'ltc_model.pkl')),
+        'DOGE-USD': load_model(os.path.join(base_path, 'models', 'doge_model.pkl'))
     }
     return models
 
 # Download models from GitHub if not already downloaded
 model_urls = {
-    'btc_model.pkl': 'https://github.com/I-r-a-j/crypto_analysis/blob/I-r-a-j/crypto_analysis/models/btc_model.pkl',
-    'eth_model.pkl': 'https://github.com/I-r-a-j/crypto_analysis/blob/I-r-a-j/crypto_analysis/models/eth_model.pkl',
-    'ltc_model.pkl': 'https://github.com/I-r-a-j/crypto_analysis/blob/I-r-a-j/crypto_analysis/models/ltc_model.pkl',
-    'doge_model.pkl': 'https://github.com/I-r-a-j/crypto_analysis/blob/I-r-a-j/crypto_analysis/models/doge_model.pkl'
+    'btc_model.pkl': 'https://raw.githubusercontent.com/I-r-a-j/crypto_analysis/I-r-a-j/crypto_analysis/models/btc_model.pkl',
+    'eth_model.pkl': 'https://raw.githubusercontent.com/I-r-a-j/crypto_analysis/I-r-a-j/crypto_analysis/models/eth_model.pkl',
+    'ltc_model.pkl': 'https://raw.githubusercontent.com/I-r-a-j/crypto_analysis/I-r-a-j/crypto_analysis/models/ltc_model.pkl',
+    'doge_model.pkl': 'https://raw.githubusercontent.com/I-r-a-j/crypto_analysis/I-r-a-j/crypto_analysis/models/doge_model.pkl'
 }
 
 for model_name, url in model_urls.items():
@@ -213,44 +213,23 @@ def main():
     selected_symbol = st.selectbox('Select a cryptocurrency', symbols)
     selected_data = st.session_state.data[selected_symbol]
 
-    # Time range selection
-    date_range = st.date_input('Select date range',
-                               value=(selected_data.index[0].date(), selected_data.index[-1].date()),
-                               min_value=selected_data.index[0].date(),
-                               max_value=selected_data.index[-1].date())
-
-    start_date, end_date = date_range
-    filtered_data = selected_data.loc[start_date:end_date]
-
     # Section 3: Candlestick Chart
-    st.subheader('Candlestick Chart')
-    candlestick_chart = plot_candlestick(filtered_data, selected_symbol)
-    st.plotly_chart(candlestick_chart)
+    st.plotly_chart(plot_candlestick(selected_data, selected_symbol))
 
     # Section 4: Technical Analysis
-    st.subheader('Technical Analysis')
-    analysis_options = ['Moving Averages', 'RSI', 'MACD', 'Bollinger Bands', 
-                        # Add more analysis options here...
-                        ]
-    selected_analysis = st.selectbox('Select Technical Analysis', analysis_options)
+    analysis_type = st.selectbox('Select Technical Analysis', ['Moving Averages', 'RSI', 'MACD', 'Bollinger Bands', 'On-Balance Volume (OBV)', 'Exponential Moving Averages (EMA)', 'Stochastic Oscillator', 'Average Directional Index (ADX)'])
+    st.plotly_chart(technical_analysis(selected_data, analysis_type))
 
-    analysis_chart = technical_analysis(filtered_data, selected_analysis)
-    st.plotly_chart(analysis_chart)
-
-    # Price predictions from pycaret models
-    st.subheader('Price Prediction')
-    prediction_date = st.date_input('Select date for prediction', min_value=datetime.now().date())
-    
-    if st.button('Predict Price'):
-        # Prepare data for prediction
-        last_data_point = filtered_data.iloc[-1]
+    # Section 5: Model Prediction
+    prediction_date = st.date_input('Select date for prediction', end_date + timedelta(days=1))
+    if st.button('Predict'):
+        last_data_point = selected_data.iloc[-1]
         future_df = pd.DataFrame([last_data_point], index=[prediction_date])
-        
+
         # Predict with the model
         model = models[selected_symbol]
         prediction = predict_model(model, data=future_df)
-        
+
         st.write(f'Predicted price for {selected_symbol} on {prediction_date}: {prediction.iloc[0]["Label"]:.2f}')
 
 if __name__ == "__main__":
-    main()
