@@ -160,51 +160,76 @@ def technical_analysis(df, analysis_type):
         return fig
 
 # Load models
-def load_models():
-    models = {}
-    symbols = ['AAPL', 'MSFT', 'TSLA']
-    for symbol in symbols:
-        models[symbol] = load_model(f'models/{symbol}_model')
+@st.cache_resource
+def load_ml_models():
+    models = {
+        'BTC-USD': load_model('path/to/your/github/repo/models/btc_model'),
+        'ETH-USD': load_model('path/to/your/github/repo/models/eth_model'),
+        'LTC-USD': load_model('path/to/your/github/repo/models/ltc_model'),
+        'DOGE-USD': load_model('path/to/your/github/repo/models/doge_model')
+    }
     return models
 
-# Load data and models
-models = load_models()
+models = load_ml_models()
 
-st.title('Financial Dashboard')
-st.sidebar.title('Settings')
+# Streamlit app
+def main():
+    st.title('Crypto Analysis App')
 
-# Sidebar selections
-symbols = st.sidebar.multiselect('Select stocks', ['AAPL', 'MSFT', 'TSLA'], default=['AAPL'])
-start_date = st.sidebar.date_input('Start Date', datetime.now() - timedelta(days=365))
-end_date = st.sidebar.date_input('End Date', datetime.now())
-analysis_type = st.sidebar.selectbox('Technical Analysis', ['Moving Averages', 'RSI', 'MACD', 'Bollinger Bands', 'On-Balance Volume (OBV)', 'Exponential Moving Averages (EMA)', 'Stochastic Oscillator', 'Average Directional Index (ADX)'])
-forecast_days = st.sidebar.slider('Forecast Days', min_value=1, max_value=30, value=7)
+    # Section 1: Data Loading
+    symbols = ['BTC-USD', 'ETH-USD', 'LTC-USD', 'DOGE-USD']
+    end_date = datetime.now()
+    start_date = end_date - timedelta(days=365 * 5)
 
-# Load data based on user inputs
-data = load_data(symbols, start_date, end_date)
+    if st.button('Refresh Data'):
+        st.session_state.data = load_data(symbols, start_date, end_date)
 
-for symbol in symbols:
-    st.header(f'{symbol} Analysis')
-    df = data[symbol]
+    if 'data' not in st.session_state:
+        st.session_state.data = load_data(symbols, start_date, end_date)
 
-    st.plotly_chart(plot_candlestick(df, symbol))
+    # Section 2: Symbol Selection
+    selected_symbol = st.selectbox('Select a cryptocurrency', symbols)
+    selected_data = st.session_state.data[selected_symbol]
 
-    # Technical analysis
+    # Time range selection
+    date_range = st.date_input('Select date range',
+                               value=(selected_data.index[0].date(), selected_data.index[-1].date()),
+                               min_value=selected_data.index[0].date(),
+                               max_value=selected_data.index[-1].date())
+
+    start_date, end_date = date_range
+    filtered_data = selected_data.loc[start_date:end_date]
+
+    # Section 3: Candlestick Chart
+    st.subheader('Candlestick Chart')
+    candlestick_chart = plot_candlestick(filtered_data, selected_symbol)
+    st.plotly_chart(candlestick_chart)
+
+    # Section 4: Technical Analysis
     st.subheader('Technical Analysis')
-    st.plotly_chart(technical_analysis(df, analysis_type))
+    analysis_options = ['Moving Averages', 'RSI', 'MACD', 'Bollinger Bands', 
+                        # Add more analysis options here...
+                        ]
+    selected_analysis = st.selectbox('Select Technical Analysis', analysis_options)
 
-    # Forecasting
-    st.subheader('Forecasting')
-    model = models[symbol]
-    future_dates = pd.date_range(df.index[-1] + timedelta(days=1), periods=forecast_days, freq='B')
-    future_df = pd.DataFrame(index=future_dates, columns=df.columns)
-    df = df.append(future_df)
+    analysis_chart = technical_analysis(filtered_data, selected_analysis)
+    st.plotly_chart(analysis_chart)
 
-    forecast = predict_model(model, fh=list(range(1, forecast_days+1)))
-    df['Forecast'] = forecast['Label']
+    # Price predictions from pycaret models
+    st.subheader('Price Prediction')
+    prediction_date = st.date_input('Select date for prediction', min_value=datetime.now().date())
+    
+    if st.button('Predict Price'):
+        # Prepare data for prediction
+        last_data = filtered_data.iloc[-1].to_dict()
+        last_data['Date'] = prediction_date
+        predict_df = pd.DataFrame([last_data])
+        
+        # Make prediction
+        prediction = predict_model(models[selected_symbol], data=predict_df)
+        predicted_price = prediction['prediction_label'].iloc[0]
+        
+        st.write(f"Predicted price for {selected_symbol} on {prediction_date}: ${predicted_price:.2f}")
 
-    fig = go.Figure()
-    fig.add_trace(go.Scatter(x=df.index, y=df['close'], mode='lines', name='Actual Data'))
-    fig.add_trace(go.Scatter(x=df.index[-forecast_days:], y=df['Forecast'][-forecast_days:], mode='lines', name='Forecast'))
-    fig.update_layout(title='Forecast', xaxis_title='Date', yaxis_title='Price')
-    st.plotly_chart(fig)
+if __name__ == '__main__':
+    main()
