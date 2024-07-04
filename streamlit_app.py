@@ -275,15 +275,15 @@ def main():
     st.subheader('Price Prediction')
     prediction_date = st.date_input('Select date for prediction', min_value=datetime.now().date())
     
-        if st.button('Predict Price'):
-            # Prepare data for prediction
-            last_data = filtered_data.iloc[-1].to_dict()
-            last_data['Date'] = prediction_date
-            predict_df = pd.DataFrame([last_data])
+    if st.button('Predict Price'):
+        # Prepare data for prediction
+        last_data = filtered_data.iloc[-1].to_dict()
+        last_data['Date'] = prediction_date
+        predict_df = pd.DataFrame([last_data])
         
-            # Make prediction
-            prediction = predict_model(models[selected_symbol], data=predict_df)
-            predicted_price = prediction['prediction_label'].iloc[0]
+        # Make prediction
+        prediction = predict_model(models[selected_symbol], data=predict_df)
+        predicted_price = prediction['prediction_label'].iloc[0]
         
             st.write(f"Predicted price for {selected_symbol} on {prediction_date}: ${predicted_price:.2f}")
 
