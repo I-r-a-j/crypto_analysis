@@ -287,3 +287,4 @@ def main():
         st.write(f'Predicted price for {selected_symbol} on {prediction_date}: {prediction.iloc[0]["Label"]:.2f}')
 
 if __name__ == "__main__":
+    main()
