@@ -5,6 +5,7 @@ import plotly.graph_objects as go
 from datetime import datetime, timedelta
 from pycaret.time_series import load_model, predict_model
 import os
+import requests
 
 # Function to load data
 def load_data(symbols, start_date, end_date):
@@ -159,16 +160,37 @@ def technical_analysis(df, analysis_type):
         fig.update_layout(title='Average Directional Index (ADX)', xaxis_title='Date', yaxis_title='Value')
         return fig
 
+# Function to download model from GitHub
+def download_model(model_name, url):
+    if not os.path.exists('models'):
+        os.makedirs('models')
+    response = requests.get(url)
+    with open(f'models/{model_name}', 'wb') as file:
+        file.write(response.content)
+
 # Load models
 @st.cache_resource
 def load_ml_models():
+    base_path = os.path.dirname(__file__)
+    
     models = {
-        'BTC-USD': load_model('path/to/your/github/repo/models/btc_model'),
-        'ETH-USD': load_model('path/to/your/github/repo/models/eth_model'),
-        'LTC-USD': load_model('path/to/your/github/repo/models/ltc_model'),
-        'DOGE-USD': load_model('path/to/your/github/repo/models/doge_model')
+        'BTC-USD': load_model(os.path.join(base_path, 'models', 'btc_model')),
+        'ETH-USD': load_model(os.path.join(base_path, 'models', 'eth_model')),
+        'LTC-USD': load_model(os.path.join(base_path, 'models', 'ltc_model')),
+        'DOGE-USD': load_model(os.path.join(base_path, 'models', 'doge_model'))
     }
     return models
+
+# Download models from GitHub if not already downloaded
+model_urls = {
+    'btc_model.pkl': 'https://github.com/I-r-a-j/crypto_analysis/blob/I-r-a-j/crypto_analysis/models/btc_model.pkl',
+    'eth_model.pkl': 'https://github.com/I-r-a-j/crypto_analysis/blob/I-r-a-j/crypto_analysis/models/eth_model.pkl',
+    'ltc_model.pkl': 'https://github.com/I-r-a-j/crypto_analysis/blob/I-r-a-j/crypto_analysis/models/ltc_model.pkl',
+    'doge_model.pkl': 'https://github.com/I-r-a-j/crypto_analysis/blob/I-r-a-j/crypto_analysis/models/doge_model.pkl'
+}
+
+for model_name, url in model_urls.items():
+    download_model(model_name, url)
 
 models = load_ml_models()
 
@@ -221,15 +243,14 @@ def main():
     
     if st.button('Predict Price'):
         # Prepare data for prediction
-        last_data = filtered_data.iloc[-1].to_dict()
-        last_data['Date'] = prediction_date
-        predict_df = pd.DataFrame([last_data])
+        last_data_point = filtered_data.iloc[-1]
+        future_df = pd.DataFrame([last_data_point], index=[prediction_date])
         
-        # Make prediction
-        prediction = predict_model(models[selected_symbol], data=predict_df)
-        predicted_price = prediction['prediction_label'].iloc[0]
+        # Predict with the model
+        model = models[selected_symbol]
+        prediction = predict_model(model, data=future_df)
         
-        st.write(f"Predicted price for {selected_symbol} on {prediction_date}: ${predicted_price:.2f}")
+        st.write(f'Predicted price for {selected_symbol} on {prediction_date}: {prediction.iloc[0]["Label"]:.2f}')
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
