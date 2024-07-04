@@ -285,7 +285,7 @@ def main():
         prediction = predict_model(models[selected_symbol], data=predict_df)
         predicted_price = prediction['prediction_label'].iloc[0]
         
-            st.write(f"Predicted price for {selected_symbol} on {prediction_date}: ${predicted_price:.2f}")
+        st.write(f"Predicted price for {selected_symbol} on {prediction_date}: ${predicted_price:.2f}")
 
 
 if __name__ == '__main__':
