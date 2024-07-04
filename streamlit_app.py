@@ -214,10 +214,8 @@ def technical_analysis(df, analysis_type):
                           yaxis_title='Body Size')
         return fig
 
-# Function to download model from GitHub
 def download_model(model_name, url):
-    if not os.path.exists('models'):
-        os.makedirs('models')
+    os.makedirs('models', exist_ok=True)
     response = requests.get(url)
     with open(f'models/{model_name}', 'wb') as file:
         file.write(response.content)
