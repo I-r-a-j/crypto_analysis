@@ -5,3 +5,5 @@ plotly
 matplotlib
 pycaret
 joblib
+requests
+os
