@@ -160,6 +160,60 @@ def technical_analysis(df, analysis_type):
         fig.update_layout(title='Average Directional Index (ADX)', xaxis_title='Date', yaxis_title='Value')
         return fig
 
+    elif analysis_type == 'Ichimoku Cloud':
+        df['Tenkan-sen'] = (df['high'].rolling(window=9).max() + df['low'].rolling(window=9).min()) / 2
+        df['Kijun-sen'] = (df['high'].rolling(window=26).max() + df['low'].rolling(window=26).min()) / 2
+        df['Senkou Span A'] = ((df['Tenkan-sen'] + df['Kijun-sen']) / 2).shift(26)
+        df['Senkou Span B'] = ((df['high'].rolling(window=52).max() + df['low'].rolling(window=52).min()) / 2).shift(26)
+        df['Chikou Span'] = df['close'].shift(-26)
+        
+        fig = go.Figure()
+        fig.add_trace(go.Scatter(x=df.index, y=df['close'], mode='lines', name='Close'))
+        fig.add_trace(go.Scatter(x=df.index, y=df['Tenkan-sen'], mode='lines', name='Tenkan-sen'))
+        fig.add_trace(go.Scatter(x=df.index, y=df['Kijun-sen'], mode='lines', name='Kijun-sen'))
+        fig.add_trace(go.Scatter(x=df.index, y=df['Senkou Span A'], mode='lines', name='Senkou Span A'))
+        fig.add_trace(go.Scatter(x=df.index, y=df['Senkou Span B'], mode='lines', name='Senkou Span B'))
+        fig.add_trace(go.Scatter(x=df.index, y=df['Chikou Span'], mode='lines', name='Chikou Span'))
+        fig.add_traces([
+            go.Scatter(
+                x=df.index, y=df['Senkou Span A'],
+                fill=None,
+                mode='lines',
+                line_color='rgba(0,0,0,0)',
+            ),
+            go.Scatter(
+                x=df.index, y=df['Senkou Span B'],
+                fill='tonexty',
+                mode='lines', 
+                line_color='rgba(0,0,0,0)',
+                fillcolor='rgba(255,200,200,0.2)',
+            ),
+        ])
+        fig.update_layout(title='Ichimoku Cloud', xaxis_title='Date', yaxis_title='Price')
+        return fig
+        
+    elif analysis_type == 'Engulfing Pattern':
+        df['Body'] = df['close'] - df['open']
+        engulfing_patterns = []
+        for i in range(1, len(df)):
+            current_candle = df.iloc[i]
+            previous_candle = df.iloc[i - 1]
+            if (current_candle['close'] > current_candle['open'] and
+                previous_candle['close'] < previous_candle['open'] and
+                current_candle['open'] < previous_candle['close'] and
+                current_candle['close'] > previous_candle['open']):
+                engulfing_patterns.append(current_candle.name)
+
+        fig = go.Figure()
+        fig.add_trace(go.Scatter(x=df.index, y=df['Body'], mode='lines', name='Candle Body'))
+        fig.add_trace(go.Scatter(x=engulfing_patterns, y=df.loc[engulfing_patterns, 'Body'], 
+                                 mode='markers', name='Engulfing Pattern', 
+                                 marker=dict(color='red', size=10)))
+        fig.update_layout(title='Engulfing Pattern Analysis', 
+                          xaxis_title='Date', 
+                          yaxis_title='Body Size')
+        return fig
+
 # Function to download model from GitHub
 def download_model(model_name, url):
     if not os.path.exists('models'):
@@ -217,7 +271,7 @@ def main():
     st.plotly_chart(plot_candlestick(selected_data, selected_symbol))
 
     # Section 4: Technical Analysis
-    analysis_type = st.selectbox('Select Technical Analysis', ['Moving Averages', 'RSI', 'MACD', 'Bollinger Bands', 'On-Balance Volume (OBV)', 'Exponential Moving Averages (EMA)', 'Stochastic Oscillator', 'Average Directional Index (ADX)'])
+    analysis_type = st.selectbox('Select Technical Analysis', ['Moving Averages', 'RSI', 'MACD', 'Bollinger Bands', 'On-Balance Volume (OBV)', 'Exponential Moving Averages (EMA)', 'Stochastic Oscillator', 'Average Directional Index (ADX)', 'Ichimoku Cloud', 'Engulfing Pattern'])
     st.plotly_chart(technical_analysis(selected_data, analysis_type))
 
     # Section 5: Model Prediction
