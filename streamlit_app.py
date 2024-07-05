@@ -215,10 +215,20 @@ def technical_analysis(df, analysis_type):
         return fig
 
 def download_model(model_name, url):
-    os.makedirs('models', exist_ok=True)
-    response = requests.get(url)
-    with open(f'models/{model_name}', 'wb') as file:
-        file.write(response.content)
+    try:
+        os.makedirs('models', exist_ok=True)
+    except Exception as e:
+        print(f"Error creating directory: {e}")
+    try:
+        response = requests.get(url)
+        response.raise_for_status()  # This will raise an HTTPError if the HTTP request returned an unsuccessful status code
+        with open(f'models/{model_name}', 'wb') as file:
+            file.write(response.content)
+        print(f"Model {model_name} downloaded successfully.")
+    except requests.exceptions.RequestException as e:
+        print(f"Error downloading model: {e}")
+    except Exception as e:
+        print(f"Error writing model to file: {e}")
 
 # Load models
 @st.cache_resource
@@ -235,11 +245,12 @@ def load_ml_models():
 
 # Download models from GitHub if not already downloaded
 model_urls = {
-    'btc_model.pkl': 'https://github.com/I-r-a-j/crypto_analysis/blob/main/btc_model.pkl',
-    'eth_model.pkl': 'https://github.com/I-r-a-j/crypto_analysis/blob/main/eth_model.pkl',
-    'ltc_model.pkl': 'https://github.com/I-r-a-j/crypto_analysis/blob/main/ltc_model.pkl',
-    'doge_model.pkl': 'https://github.com/I-r-a-j/crypto_analysis/blob/main/doge_model.pkl'
+    'btc_model.pkl': 'https://github.com/I-r-a-j/crypto_analysis/raw/I-r-a-j/crypto_analysis/models/btc_model.pkl',
+    'eth_model.pkl': 'https://github.com/I-r-a-j/crypto_analysis/raw/I-r-a-j/crypto_analysis/models/eth_model.pkl',
+    'ltc_model.pkl': 'https://github.com/I-r-a-j/crypto_analysis/raw/I-r-a-j/crypto_analysis/models/ltc_model.pkl',
+    'doge_model.pkl': 'https://github.com/I-r-a-j/crypto_analysis/raw/I-r-a-j/crypto_analysis/models/doge_model.pkl'
 }
+
 
 for model_name, url in model_urls.items():
     download_model(model_name, url)
