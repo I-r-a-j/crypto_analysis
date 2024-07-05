@@ -143,7 +143,6 @@ def technical_analysis(df, analysis_type):
         df['L-PC'] = abs(df['low'] - df['close'].shift(1))
         df['TR'] = df[['H-L', 'H-PC', 'L-PC']].max(axis=1)
         df['ATR'] = df['TR'].rolling(window=window).mean()
-
         df['DM+'] = df['high'].diff()
         df['DM-'] = df['low'].diff()
         df['DM+'] = df['DM+'].apply(lambda x: x if x > 0 else 0)
@@ -207,4 +206,8 @@ if st.button('Load Data'):
             st.plotly_chart(plot_candlestick(df, symbol))
 
         else:
-            st.plotly_chart(technical_analysis(df, analysis_type))
+            try:
+                st.plotly_chart(technical_analysis(df, analysis_type))
+            except KeyError as e:
+                st.error(f"KeyError: {e} - Please check the selected analysis type and data availability.")
+                st.write(df.tail())  # Display the last few rows for debugging
