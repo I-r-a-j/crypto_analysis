@@ -143,97 +143,68 @@ def technical_analysis(df, analysis_type):
         df['L-PC'] = abs(df['low'] - df['close'].shift(1))
         df['TR'] = df[['H-L', 'H-PC', 'L-PC']].max(axis=1)
         df['ATR'] = df['TR'].rolling(window=window).mean()
-        df['UpMove'] = df['high'] - df['high'].shift(1)
-        df['DownMove'] = df['low'].shift(1) - df['low']
-        df['+DM'] = np.where((df['UpMove'] > df['DownMove']) & (df['UpMove'] > 0), df['UpMove'], 0)
-        df['-DM'] = np.where((df['DownMove'] > df['UpMove']) & (df['DownMove'] > 0), df['DownMove'], 0)
-        df['+DI'] = 100 * (df['+DM'].ewm(alpha=1/window, min_periods=window).mean() / df['ATR'])
-        df['-DI'] = 100 * (df['-DM'].ewm(alpha=1/window, min_periods=window).mean() / df['ATR'])
-        df['DX'] = 100 * abs((df['+DI'] - df['-DI']) / (df['+DI'] + df['-DI']))
-        df['ADX'] = df['DX'].ewm(alpha=1/window, min_periods=window).mean()
+
+        df['DM+'] = df['high'].diff()
+        df['DM-'] = df['low'].diff()
+        df['DM+'] = df['DM+'].apply(lambda x: x if x > 0 else 0)
+        df['DM-'] = df['DM-'].apply(lambda x: abs(x) if x < 0 else 0)
+
+        df['DI+'] = (df['DM+'] / df['ATR']) * 100
+        df['DI-'] = (df['DM-'] / df['ATR']) * 100
+        df['DX'] = (abs(df['DI+'] - df['DI-']) / (df['DI+'] + df['DI-'])) * 100
+        df['ADX'] = df['DX'].rolling(window=window).mean()
 
         fig = go.Figure()
-        fig.add_trace(go.Scatter(x=df.index, y=df['+DI'], mode='lines', name='+DI'))
-        fig.add_trace(go.Scatter(x=df.index, y=df['-DI'], mode='lines', name='-DI'))
         fig.add_trace(go.Scatter(x=df.index, y=df['ADX'], mode='lines', name='ADX'))
-        fig.update_layout(title='Average Directional Index (ADX)', xaxis_title='Date', yaxis_title='Value')
+        fig.add_hline(y=25, line_dash="dash", line_color="blue", annotation_text="Trend Indicator")
+        fig.update_layout(title='Average Directional Index (ADX)', xaxis_title='Date', yaxis_title='ADX')
         return fig
 
-# Define a function to download the model if it does not exist
-def download_model(symbol):
-    model_url = f'https://github.com/your_username/your_repository/raw/main/{symbol.lower().split("-")[0]}_model'
-    local_model_path = os.path.join('/tmp', f'{symbol.lower().split("-")[0]}_model')
+    else:
+        return None
 
-    if not os.path.exists(local_model_path):
-        with open(local_model_path, 'wb') as f:
-            f.write(requests.get(model_url).content)
+# Download and load models
+def download_model(url, save_path):
+    response = requests.get(url)
+    with open(save_path, 'wb') as f:
+        f.write(response.content)
 
-    return local_model_path
-
-# Main Streamlit app
-st.title("Cryptocurrency Dashboard")
-st.sidebar.title("Settings")
-
-# Define the start and end date
-today = datetime.today()
-default_start_date = today - timedelta(days=365)
-default_end_date = today
-
-# Get user input for start and end dates
-start_date = st.sidebar.date_input('Start date', default_start_date)
-end_date = st.sidebar.date_input('End date', default_end_date)
-
-# Get user input for cryptocurrencies to analyze
-cryptos = {
-    'Bitcoin': 'BTC-USD',
-    'Ethereum': 'ETH-USD',
-    'Litecoin': 'LTC-USD',
-    'Dogecoin': 'DOGE-USD'
+# Define model URLs
+model_urls = {
+    'btc_model': 'https://github.com/I-r-a-j/crypto_analysis/blob/main/btc_model.pkl',
+    'eth_model': 'https://github.com/I-r-a-j/crypto_analysis/blob/main/eth_model.pkl',
+    'ltc_model': 'https://github.com/I-r-a-j/crypto_analysis/blob/main/ltc_model.pkl',
+    'doge_model': 'https://github.com/I-r-a-j/crypto_analysis/blob/main/doge_model.pkl'
 }
 
-selected_cryptos = st.sidebar.multiselect('Select cryptocurrencies', list(cryptos.keys()), default=list(cryptos.keys()))
+# Download models
+for model_name, model_url in model_urls.items():
+    model_path = os.path.join('/tmp', model_name + '.pkl')
+    if not os.path.exists(model_path):
+        download_model(model_url, model_path)
 
-if selected_cryptos:
-    symbols = [cryptos[crypto] for crypto in selected_cryptos]
-    data = load_data(symbols, start_date, end_date)
+# Load models
+btc_model = load_model('/tmp/btc_model')
+eth_model = load_model('/tmp/eth_model')
+ltc_model = load_model('/tmp/ltc_model')
+doge_model = load_model('/tmp/doge_model')
 
-    # Plot candlestick charts
-    st.subheader("Candlestick Charts")
-    for symbol in symbols:
-        st.plotly_chart(plot_candlestick(data[symbol], symbol))
+# Streamlit UI
+st.title('Cryptocurrency Price Analysis and Prediction')
 
-    # Technical analysis
-    analysis_type = st.sidebar.selectbox(
-        'Select technical analysis',
-        ['Moving Averages', 'RSI', 'MACD', 'Bollinger Bands', 'On-Balance Volume (OBV)', 'Exponential Moving Averages (EMA)', 'Stochastic Oscillator', 'Average Directional Index (ADX)']
-    )
+symbols = st.multiselect('Select cryptocurrency symbols:', ['BTC-USD', 'ETH-USD', 'LTC-USD', 'DOGE-USD'])
+start_date = st.date_input('Select start date:', value=datetime.now() - timedelta(days=365))
+end_date = st.date_input('Select end date:', value=datetime.now())
+analysis_type = st.selectbox('Select analysis type:', ['Candlestick Chart', 'Moving Averages', 'RSI', 'MACD', 'Bollinger Bands', 'On-Balance Volume (OBV)', 'Exponential Moving Averages (EMA)', 'Stochastic Oscillator', 'Average Directional Index (ADX)'])
 
-    st.subheader(f"Technical Analysis: {analysis_type}")
-    for symbol in symbols:
-        st.plotly_chart(technical_analysis(data[symbol], analysis_type))
+if st.button('Load Data'):
+    dfs = load_data(symbols, start_date, end_date)
+    for symbol, df in dfs.items():
+        st.subheader(f'{symbol} Data')
+        st.write(df)
 
-    # Predict future prices
-    st.subheader("Price Prediction")
-    days_to_predict = st.sidebar.number_input('Days to predict', min_value=1, max_value=30, value=7)
+        if analysis_type == 'Candlestick Chart':
+            st.plotly_chart(plot_candlestick(df, symbol))
 
-    for symbol in symbols:
-        local_model_path = download_model(symbol)
-
-        # Load model
-        model = load_model(local_model_path)
-
-        # Predict future prices
-        future_dates = pd.date_range(start=end_date + timedelta(days=1), periods=days_to_predict)
-        predictions = predict_model(model, fh=days_to_predict)
-        predictions.index = future_dates
-
-        # Plot predictions
-        st.write(f"Predictions for {symbol}")
-        fig = go.Figure()
-        fig.add_trace(go.Scatter(x=data[symbol].index, y=data[symbol]['close'], mode='lines', name='Actual Prices'))
-        fig.add_trace(go.Scatter(x=predictions.index, y=predictions['Label'], mode='lines', name='Predicted Prices'))
-        fig.update_layout(title=f'{symbol} Price Prediction', xaxis_title='Date', yaxis_title='Price')
-        st.plotly_chart(fig)
-else:
-    st.write("Please select at least one cryptocurrency to analyze.")
-
+        else:
+            st.plotly_chart(technical_analysis(df, analysis_type))
