@@ -159,6 +159,17 @@ def technical_analysis(df, analysis_type):
         fig.update_layout(title='Average Directional Index (ADX)', xaxis_title='Date', yaxis_title='Value')
         return fig
 
+# Define a function to download the model if it does not exist
+def download_model(symbol):
+    model_url = f'https://github.com/your_username/your_repository/raw/main/{symbol.lower().split("-")[0]}_model.pkl'
+    local_model_path = os.path.join('/tmp', f'{symbol.lower().split("-")[0]}_model.pkl')
+
+    if not os.path.exists(local_model_path):
+        with open(local_model_path, 'wb') as f:
+            f.write(requests.get(model_url).content)
+
+    return local_model_path
+
 # Main Streamlit app
 st.title("Cryptocurrency Dashboard")
 st.sidebar.title("Settings")
@@ -206,13 +217,7 @@ if selected_cryptos:
     days_to_predict = st.sidebar.number_input('Days to predict', min_value=1, max_value=30, value=7)
 
     for symbol in symbols:
-        model_url = f'https://github.com/your_username/your_repository/raw/main/{symbol.lower().split("-")[0]}_model.pkl'
-        local_model_path = os.path.join('/tmp', f'{symbol.lower().split("-")[0]}_model.pkl')
-
-        # Download model file
-        if not os.path.exists(local_model_path):
-            with open(local_model_path, 'wb') as f:
-                f.write(requests.get(model_url).content)
+        local_model_path = download_model(symbol)
 
         # Load model
         model = load_model(local_model_path)
@@ -231,3 +236,4 @@ if selected_cryptos:
         st.plotly_chart(fig)
 else:
     st.write("Please select at least one cryptocurrency to analyze.")
+
