@@ -161,8 +161,8 @@ def technical_analysis(df, analysis_type):
 
 # Define a function to download the model if it does not exist
 def download_model(symbol):
-    model_url = f'https://github.com/your_username/your_repository/raw/main/{symbol.lower().split("-")[0]}_model.pkl'
-    local_model_path = os.path.join('/tmp', f'{symbol.lower().split("-")[0]}_model.pkl')
+    model_url = f'https://github.com/your_username/your_repository/raw/main/{symbol.lower().split("-")[0]}_model'
+    local_model_path = os.path.join('/tmp', f'{symbol.lower().split("-")[0]}_model')
 
     if not os.path.exists(local_model_path):
         with open(local_model_path, 'wb') as f:
