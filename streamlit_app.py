@@ -143,155 +143,91 @@ def technical_analysis(df, analysis_type):
         df['L-PC'] = abs(df['low'] - df['close'].shift(1))
         df['TR'] = df[['H-L', 'H-PC', 'L-PC']].max(axis=1)
         df['ATR'] = df['TR'].rolling(window=window).mean()
-
-        df['DM+'] = df['high'].diff()
-        df['DM-'] = df['low'].diff()
-        df['DM+'] = df.apply(lambda row: row['DM+'] if row['DM+'] > row['DM-'] and row['DM+'] > 0 else 0, axis=1)
-        df['DM-'] = df.apply(lambda row: row['DM-'] if row['DM-'] > row['DM+'] and row['DM-'] > 0 else 0, axis=1)
-        df['DI+'] = (df['DM+'].rolling(window=window).mean() / df['ATR']) * 100
-        df['DI-'] = (df['DM-'].rolling(window=window).mean() / df['ATR']) * 100
-        df['DX'] = (abs(df['DI+'] - df['DI-']) / (df['DI+'] + df['DI-'])) * 100
-        df['ADX'] = df['DX'].rolling(window=window).mean()
+        df['UpMove'] = df['high'] - df['high'].shift(1)
+        df['DownMove'] = df['low'].shift(1) - df['low']
+        df['+DM'] = np.where((df['UpMove'] > df['DownMove']) & (df['UpMove'] > 0), df['UpMove'], 0)
+        df['-DM'] = np.where((df['DownMove'] > df['UpMove']) & (df['DownMove'] > 0), df['DownMove'], 0)
+        df['+DI'] = 100 * (df['+DM'].ewm(alpha=1/window, min_periods=window).mean() / df['ATR'])
+        df['-DI'] = 100 * (df['-DM'].ewm(alpha=1/window, min_periods=window).mean() / df['ATR'])
+        df['DX'] = 100 * abs((df['+DI'] - df['-DI']) / (df['+DI'] + df['-DI']))
+        df['ADX'] = df['DX'].ewm(alpha=1/window, min_periods=window).mean()
 
         fig = go.Figure()
-        fig.add_trace(go.Scatter(x=df.index, y=df['DI+'], mode='lines', name='DI+'))
-        fig.add_trace(go.Scatter(x=df.index, y=df['DI-'], mode='lines', name='DI-'))
+        fig.add_trace(go.Scatter(x=df.index, y=df['+DI'], mode='lines', name='+DI'))
+        fig.add_trace(go.Scatter(x=df.index, y=df['-DI'], mode='lines', name='-DI'))
         fig.add_trace(go.Scatter(x=df.index, y=df['ADX'], mode='lines', name='ADX'))
         fig.update_layout(title='Average Directional Index (ADX)', xaxis_title='Date', yaxis_title='Value')
         return fig
 
-    elif analysis_type == 'Ichimoku Cloud':
-        df['Tenkan-sen'] = (df['high'].rolling(window=9).max() + df['low'].rolling(window=9).min()) / 2
-        df['Kijun-sen'] = (df['high'].rolling(window=26).max() + df['low'].rolling(window=26).min()) / 2
-        df['Senkou Span A'] = ((df['Tenkan-sen'] + df['Kijun-sen']) / 2).shift(26)
-        df['Senkou Span B'] = ((df['high'].rolling(window=52).max() + df['low'].rolling(window=52).min()) / 2).shift(26)
-        df['Chikou Span'] = df['close'].shift(-26)
-        
-        fig = go.Figure()
-        fig.add_trace(go.Scatter(x=df.index, y=df['close'], mode='lines', name='Close'))
-        fig.add_trace(go.Scatter(x=df.index, y=df['Tenkan-sen'], mode='lines', name='Tenkan-sen'))
-        fig.add_trace(go.Scatter(x=df.index, y=df['Kijun-sen'], mode='lines', name='Kijun-sen'))
-        fig.add_trace(go.Scatter(x=df.index, y=df['Senkou Span A'], mode='lines', name='Senkou Span A'))
-        fig.add_trace(go.Scatter(x=df.index, y=df['Senkou Span B'], mode='lines', name='Senkou Span B'))
-        fig.add_trace(go.Scatter(x=df.index, y=df['Chikou Span'], mode='lines', name='Chikou Span'))
-        fig.add_traces([
-            go.Scatter(
-                x=df.index, y=df['Senkou Span A'],
-                fill=None,
-                mode='lines',
-                line_color='rgba(0,0,0,0)',
-            ),
-            go.Scatter(
-                x=df.index, y=df['Senkou Span B'],
-                fill='tonexty',
-                mode='lines', 
-                line_color='rgba(0,0,0,0)',
-                fillcolor='rgba(255,200,200,0.2)',
-            ),
-        ])
-        fig.update_layout(title='Ichimoku Cloud', xaxis_title='Date', yaxis_title='Price')
-        return fig
-        
-    elif analysis_type == 'Engulfing Pattern':
-        df['Body'] = df['close'] - df['open']
-        engulfing_patterns = []
-        for i in range(1, len(df)):
-            current_candle = df.iloc[i]
-            previous_candle = df.iloc[i - 1]
-            if (current_candle['close'] > current_candle['open'] and
-                previous_candle['close'] < previous_candle['open'] and
-                current_candle['open'] < previous_candle['close'] and
-                current_candle['close'] > previous_candle['open']):
-                engulfing_patterns.append(current_candle.name)
+# Main Streamlit app
+st.title("Cryptocurrency Dashboard")
+st.sidebar.title("Settings")
 
-        fig = go.Figure()
-        fig.add_trace(go.Scatter(x=df.index, y=df['Body'], mode='lines', name='Candle Body'))
-        fig.add_trace(go.Scatter(x=engulfing_patterns, y=df.loc[engulfing_patterns, 'Body'], 
-                                 mode='markers', name='Engulfing Pattern', 
-                                 marker=dict(color='red', size=10)))
-        fig.update_layout(title='Engulfing Pattern Analysis', 
-                          xaxis_title='Date', 
-                          yaxis_title='Body Size')
-        return fig
+# Define the start and end date
+today = datetime.today()
+default_start_date = today - timedelta(days=365)
+default_end_date = today
 
-def download_model(model_name, url):
-    try:
-        if not os.path.exists('models'):
-            os.makedirs('models')
-        response = requests.get(url)
-        response.raise_for_status()  # This will raise an HTTPError if the HTTP request returned an unsuccessful status code
-        with open(os.path.join('models', model_name), 'wb') as file:
-            file.write(response.content)
-        print(f"Model {model_name} downloaded successfully.")
-    except requests.exceptions.RequestException as e:
-        print(f"Error downloading model: {e}")
-    except Exception as e:
-        print(f"Error writing model to file: {e}")
+# Get user input for start and end dates
+start_date = st.sidebar.date_input('Start date', default_start_date)
+end_date = st.sidebar.date_input('End date', default_end_date)
 
-# Load models
-@st.cache_resource
-def load_ml_models():
-    base_path = os.path.dirname(__file__)
-    
-    models = {
-        'BTC-USD': load_model(os.path.join(base_path, 'models', 'btc_model')),
-        'ETH-USD': load_model(os.path.join(base_path, 'models', 'eth_model')),
-        'LTC-USD': load_model(os.path.join(base_path, 'models', 'ltc_model')),
-        'DOGE-USD': load_model(os.path.join(base_path, 'models', 'doge_model'))
-    }
-    return models
-
-# Download models from GitHub if not already downloaded
-model_urls = {
-    'btc_model.pkl': 'https://github.com/I-r-a-j/crypto_analysis/raw/I-r-a-j/crypto_analysis/models/btc_model.pkl',
-    'eth_model.pkl': 'https://github.com/I-r-a-j/crypto_analysis/raw/I-r-a-j/crypto_analysis/models/eth_model.pkl',
-    'ltc_model.pkl': 'https://github.com/I-r-a-j/crypto_analysis/raw/I-r-a-j/crypto_analysis/models/ltc_model.pkl',
-    'doge_model.pkl': 'https://github.com/I-r-a-j/crypto_analysis/raw/I-r-a-j/crypto_analysis/models/doge_model.pkl'
+# Get user input for cryptocurrencies to analyze
+cryptos = {
+    'Bitcoin': 'BTC-USD',
+    'Ethereum': 'ETH-USD',
+    'Litecoin': 'LTC-USD',
+    'Dogecoin': 'DOGE-USD'
 }
 
+selected_cryptos = st.sidebar.multiselect('Select cryptocurrencies', list(cryptos.keys()), default=list(cryptos.keys()))
 
-for model_name, url in model_urls.items():
-    download_model(model_name, url)
+if selected_cryptos:
+    symbols = [cryptos[crypto] for crypto in selected_cryptos]
+    data = load_data(symbols, start_date, end_date)
 
-models = load_ml_models()
+    # Plot candlestick charts
+    st.subheader("Candlestick Charts")
+    for symbol in symbols:
+        st.plotly_chart(plot_candlestick(data[symbol], symbol))
 
-# Streamlit app
-def main():
-    st.title('Crypto Analysis App')
+    # Technical analysis
+    analysis_type = st.sidebar.selectbox(
+        'Select technical analysis',
+        ['Moving Averages', 'RSI', 'MACD', 'Bollinger Bands', 'On-Balance Volume (OBV)', 'Exponential Moving Averages (EMA)', 'Stochastic Oscillator', 'Average Directional Index (ADX)']
+    )
 
-    # Section 1: Data Loading
-    symbols = ['BTC-USD', 'ETH-USD', 'LTC-USD', 'DOGE-USD']
-    end_date = datetime.now()
-    start_date = end_date - timedelta(days=365 * 5)
+    st.subheader(f"Technical Analysis: {analysis_type}")
+    for symbol in symbols:
+        st.plotly_chart(technical_analysis(data[symbol], analysis_type))
 
-    if st.button('Refresh Data'):
-        st.session_state.data = load_data(symbols, start_date, end_date)
+    # Predict future prices
+    st.subheader("Price Prediction")
+    days_to_predict = st.sidebar.number_input('Days to predict', min_value=1, max_value=30, value=7)
 
-    if 'data' not in st.session_state:
-        st.session_state.data = load_data(symbols, start_date, end_date)
+    for symbol in symbols:
+        model_url = f'https://github.com/your_username/your_repository/raw/main/{symbol.lower().split("-")[0]}_model.pkl'
+        local_model_path = os.path.join('/tmp', f'{symbol.lower().split("-")[0]}_model.pkl')
 
-    # Section 2: Symbol Selection
-    selected_symbol = st.selectbox('Select a cryptocurrency', symbols)
-    selected_data = st.session_state.data[selected_symbol]
+        # Download model file
+        if not os.path.exists(local_model_path):
+            with open(local_model_path, 'wb') as f:
+                f.write(requests.get(model_url).content)
 
-    # Section 3: Candlestick Chart
-    st.plotly_chart(plot_candlestick(selected_data, selected_symbol))
+        # Load model
+        model = load_model(local_model_path)
 
-    # Section 4: Technical Analysis
-    analysis_type = st.selectbox('Select Technical Analysis', ['Moving Averages', 'RSI', 'MACD', 'Bollinger Bands', 'On-Balance Volume (OBV)', 'Exponential Moving Averages (EMA)', 'Stochastic Oscillator', 'Average Directional Index (ADX)', 'Ichimoku Cloud', 'Engulfing Pattern'])
-    st.plotly_chart(technical_analysis(selected_data, analysis_type))
+        # Predict future prices
+        future_dates = pd.date_range(start=end_date + timedelta(days=1), periods=days_to_predict)
+        predictions = predict_model(model, fh=days_to_predict)
+        predictions.index = future_dates
 
-    # Section 5: Model Prediction
-    prediction_date = st.date_input('Select date for prediction', end_date + timedelta(days=1))
-    if st.button('Predict'):
-        last_data_point = selected_data.iloc[-1]
-        future_df = pd.DataFrame([last_data_point], index=[prediction_date])
-
-        # Predict with the model
-        model = models[selected_symbol]
-        prediction = predict_model(model, data=future_df)
-
-        st.write(f'Predicted price for {selected_symbol} on {prediction_date}: {prediction.iloc[0]["Label"]:.2f}')
-
-if __name__ == "__main__":
-    main()
+        # Plot predictions
+        st.write(f"Predictions for {symbol}")
+        fig = go.Figure()
+        fig.add_trace(go.Scatter(x=data[symbol].index, y=data[symbol]['close'], mode='lines', name='Actual Prices'))
+        fig.add_trace(go.Scatter(x=predictions.index, y=predictions['Label'], mode='lines', name='Predicted Prices'))
+        fig.update_layout(title=f'{symbol} Price Prediction', xaxis_title='Date', yaxis_title='Price')
+        st.plotly_chart(fig)
+else:
+    st.write("Please select at least one cryptocurrency to analyze.")
