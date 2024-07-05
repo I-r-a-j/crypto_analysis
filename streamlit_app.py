@@ -234,10 +234,10 @@ def load_ml_models():
     base_path = os.path.dirname(__file__)
     
     models = {
-        'BTC-USD': load_model(os.path.join(base_path, 'models', 'btc_model.pkl')),
-        'ETH-USD': load_model(os.path.join(base_path, 'models', 'eth_model.pkl')),
-        'LTC-USD': load_model(os.path.join(base_path, 'models', 'ltc_model.pkl')),
-        'DOGE-USD': load_model(os.path.join(base_path, 'models', 'doge_model.pkl'))
+        'BTC-USD': load_model(os.path.join(base_path, 'models', 'btc_model')),
+        'ETH-USD': load_model(os.path.join(base_path, 'models', 'eth_model')),
+        'LTC-USD': load_model(os.path.join(base_path, 'models', 'ltc_model')),
+        'DOGE-USD': load_model(os.path.join(base_path, 'models', 'doge_model'))
     }
     return models
 
