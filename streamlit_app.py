@@ -216,13 +216,11 @@ def technical_analysis(df, analysis_type):
 
 def download_model(model_name, url):
     try:
-        os.makedirs('models', exist_ok=True)
-    except Exception as e:
-        print(f"Error creating directory: {e}")
-    try:
+        if not os.path.exists('models'):
+            os.makedirs('models')
         response = requests.get(url)
         response.raise_for_status()  # This will raise an HTTPError if the HTTP request returned an unsuccessful status code
-        with open(f'models/{model_name}', 'wb') as file:
+        with open(os.path.join('models', model_name), 'wb') as file:
             file.write(response.content)
         print(f"Model {model_name} downloaded successfully.")
     except requests.exceptions.RequestException as e:
