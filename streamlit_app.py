@@ -183,10 +183,10 @@ st.plotly_chart(tech_analysis_fig)
 
 # Technical analysis summary using tradingview_ta
 tv_symbol_mapping = {
-    'BTC': 'BINANCE:BTCUSDT',
-    'ETH': 'BINANCE:ETHUSDT',
-    'LTC': 'BINANCE:LTCUSDT',
-    'DOGE': 'BINANCE:DOGEUSDT'
+    'BTC': 'BTCUSDT',
+    'ETH': 'ETHUSDT',
+    'LTC': 'LTCUSDT',
+    'DOGE': 'DOGEUSDT'
 }
 tv_symbol = tv_symbol_mapping[crypto]
 
