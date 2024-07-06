@@ -4,7 +4,7 @@ import pandas as pd
 import plotly.graph_objects as go
 from datetime import datetime, timedelta
 from tradingview_ta import TA_Handler, Interval
-from pycaret.time_series import load_model
+
 # Function to load data
 def load_data(symbols, start_date, end_date):
     dfs = {}
