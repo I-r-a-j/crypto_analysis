@@ -148,7 +148,7 @@ def technical_analysis(df, analysis_type):
         return fig
 
 # Streamlit app
-st.title('Cryptocurrency Technical Analysis App')
+st.title('Cryptocurrency Analysis')
 
 # Input for cryptocurrency symbol
 crypto = st.selectbox('Select a cryptocurrency', ['BTC', 'ETH', 'LTC', 'DOGE'])
