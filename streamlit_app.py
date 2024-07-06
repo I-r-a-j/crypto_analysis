@@ -196,9 +196,9 @@ end_date = datetime.now()
 start_date = end_date - timedelta(days=5*365)
 dfs = load_data(symbol_mapping.values(), start_date, end_date)
 
-# Plot candlestick chart
-candlestick_fig = plot_candlestick(dfs[symbol], symbol)
-st.plotly_chart(candlestick_fig)
+# Interactive candlestick chart
+st.subheader(f'Interactive Candlestick Chart for {crypto}')
+st.line_chart(filtered_data[['Open', 'High', 'Low', 'Close']])
 
 # Select analysis type
 analysis_type = st.selectbox('Select Technical Analysis Type', [
@@ -206,9 +206,31 @@ analysis_type = st.selectbox('Select Technical Analysis Type', [
     'Exponential Moving Averages (EMA)', 'Stochastic Oscillator', 'Average Directional Index (ADX)'
 ])
 
-# Plot technical analysis
-tech_analysis_fig = technical_analysis(dfs[symbol], analysis_type)
-st.plotly_chart(tech_analysis_fig)
+for ta in ta_options:
+    if ta == 'SMA':
+        filtered_data['SMA'] = filtered_data['Close'].rolling(window=20).mean()
+        st.line_chart(filtered_data[['Close', 'SMA']])
+    elif ta == 'EMA':
+        filtered_data['EMA'] = filtered_data['Close'].ewm(span=20, adjust=False).mean()
+        st.line_chart(filtered_data[['Close', 'EMA']])
+    elif ta == 'MACD':
+        filtered_data['MACD'] = filtered_data['Close'].ewm(span=12, adjust=False).mean() - filtered_data['Close'].ewm(span=26, adjust=False).mean()
+        st.line_chart(filtered_data[['Close', 'MACD']])
+    elif ta == 'RSI':
+        delta = filtered_data['Close'].diff(1)
+        gain = delta.where(delta > 0, 0)
+        loss = -delta.where(delta < 0, 0)
+        avg_gain = gain.rolling(window=14).mean()
+        avg_loss = loss.rolling(window=14).mean()
+        rs = avg_gain / avg_loss
+        filtered_data['RSI'] = 100 - (100 / (1 + rs))
+        st.line_chart(filtered_data[['Close', 'RSI']])
+    elif ta == 'Bollinger Bands':
+        filtered_data['SMA'] = filtered_data['Close'].rolling(window=20).mean()
+        filtered_data['Upper Band'] = filtered_data['SMA'] + 2 * filtered_data['Close'].rolling(window=20).std()
+        filtered_data['Lower Band'] = filtered_data['SMA'] - 2 * filtered_data['Close'].rolling(window=20).std()
+        st.line_chart(filtered_data[['Close', 'Upper Band', 'Lower Band']])
+
 
 # Technical analysis summary using tradingview_ta
 tv_symbol_mapping = {
