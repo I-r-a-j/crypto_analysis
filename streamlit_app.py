@@ -1,6 +1,7 @@
 import streamlit as st
 import yfinance as yf
 import pandas as pd
+from datetime import datetime, timedelta
 import plotly.graph_objects as go
 from datetime import datetime, timedelta
 from tradingview_ta import TA_Handler, Interval
@@ -149,6 +150,34 @@ def technical_analysis(df, analysis_type):
 
 # Streamlit app
 st.title('Cryptocurrency Analysis')
+
+# Time selection
+st.sidebar.subheader('Select Time Period')
+end_date = datetime.now()
+start_date = end_date - timedelta(days=365 * 5)
+
+# User selection
+st.sidebar.subheader('Select a Cryptocurrency')
+crypto = st.sidebar.selectbox('Cryptocurrency', list(crypto_symbols.keys()))
+symbol = crypto_symbols[crypto]
+
+# Load data
+if st.button('Refresh Data') or 'data' not in st.session_state:
+    st.session_state.data = load_data(symbol, start_date, end_date)
+data = st.session_state.data
+
+# Date range selection
+st.sidebar.subheader('Select Date Range')
+date_range = st.sidebar.date_input('Select date range',
+                                   value=(data.index[0].date(), data.index[-1].date()),
+                                   min_value=data.index[0].date(),
+                                   max_value=data.index[-1].date())
+start_date, end_date = date_range
+filtered_data = data.loc[start_date:end_date]
+
+# Display data
+st.write(f"Showing data for {crypto} from {start_date} to {end_date}")
+st.dataframe(filtered_data)
 
 # Input for cryptocurrency symbol
 crypto = st.selectbox('Select a cryptocurrency', ['BTC', 'ETH', 'LTC', 'DOGE'])
