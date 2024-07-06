@@ -3,7 +3,6 @@ yfinance
 pandas
 plotly
 matplotlib
-pycaret
 joblib
 requests
 tradingview_ta
