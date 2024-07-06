@@ -202,7 +202,10 @@ try:
     summary = ta_analysis.summary
 
     st.subheader(f'Technical Analysis Summary for {crypto}')
-    st.write(summary)
+    st.write(f"RECOMMENDATION: {summary['RECOMMENDATION']}")
+    st.write(f"BUY: {summary['BUY']}")
+    st.write(f"SELL: {summary['SELL']}")
+    st.write(f"NEUTRAL: {summary['NEUTRAL']}")
 except Exception as e:
     st.error(f"Error fetching technical analysis summary: {e}")
 
