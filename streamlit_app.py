@@ -13,6 +13,7 @@ def load_data(symbols, start_date, end_date):
         df.columns = [col.lower().replace(' ', '_') for col in df.columns]
         dfs[symbol] = df
     return dfs
+    
 # Function to plot candlestick chart
 def plot_candlestick(df, symbol):
     fig = go.Figure(data=[go.Candlestick(
@@ -145,7 +146,7 @@ def technical_analysis(df, analysis_type):
         return fig
 
 # Streamlit app
-st.title('Cryptocurrency Technical Analysis App')
+
 st.title('Cryptocurrency Analysis')
 
 # Input for cryptocurrency symbol
@@ -162,6 +163,7 @@ symbol = symbol_mapping[crypto]
 end_date = datetime.now()
 start_date = end_date - timedelta(days=5*365)
 dfs = load_data(symbol_mapping.values(), start_date, end_date)
+
 # Plot candlestick chart
 candlestick_fig = plot_candlestick(dfs[symbol], symbol)
 st.plotly_chart(candlestick_fig)
@@ -170,6 +172,7 @@ analysis_type = st.selectbox('Select Technical Analysis Type', [
     'Moving Averages', 'RSI', 'MACD', 'Bollinger Bands', 'On-Balance Volume (OBV)',
     'Exponential Moving Averages (EMA)', 'Stochastic Oscillator', 'Average Directional Index (ADX)'
 ])
+
 # Plot technical analysis
 tech_analysis_fig = technical_analysis(dfs[symbol], analysis_type)
 st.plotly_chart(tech_analysis_fig)
@@ -181,6 +184,7 @@ tv_symbol_mapping = {
     'DOGE': 'DOGEUSDT'
 }
 tv_symbol = tv_symbol_mapping[crypto]
+
 # Fetch technical analysis summary
 try:
     ta_handler = TA_Handler(
