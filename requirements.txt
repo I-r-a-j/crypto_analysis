@@ -6,3 +6,4 @@ matplotlib
 pycaret
 joblib
 requests
+tradingview_ta
