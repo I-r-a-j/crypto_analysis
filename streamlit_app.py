@@ -3,7 +3,6 @@ import yfinance as yf
 import pandas as pd
 from datetime import datetime, timedelta
 import plotly.graph_objects as go
-from datetime import datetime, timedelta
 from tradingview_ta import TA_Handler, Interval
 from pycaret.time_series import load_model
 
@@ -131,167 +130,83 @@ def technical_analysis(df, analysis_type):
         df['H-PC'] = abs(df['high'] - df['close'].shift(1))
         df['L-PC'] = abs(df['low'] - df['close'].shift(1))
         df['TR'] = df[['H-L', 'H-PC', 'L-PC']].max(axis=1)
-        df['+DM'] = (df['high'] - df['high'].shift(1)).clip(lower=0)
-        df['-DM'] = (df['low'].shift(1) - df['low']).clip(lower=0)
-        df['+DM'] = df['+DM'][df['+DM'] > df['-DM']]
-        df['-DM'] = df['-DM'][df['-DM'] > df['+DM']]
-        df['ATR'] = df['TR'].rolling(window=window).mean()
-        df['+DI'] = (df['+DM'] / df['ATR']).rolling(window=window).mean() * 100
-        df['-DI'] = (df['-DM'] / df['ATR']).rolling(window=window).mean() * 100
-        df['DX'] = (abs(df['+DI'] - df['-DI']) / abs(df['+DI'] + df['-DI'])) * 100
+        df['+DM'] = df['high'].diff().where(df['high'].diff() > df['low'].diff(), 0).fillna(0)
+        df['-DM'] = df['low'].diff().where(df['low'].diff() > df['high'].diff(), 0).fillna(0)
+        df['+DI'] = 100 * (df['+DM'].rolling(window=window).mean() / df['TR'].rolling(window=window).mean())
+        df['-DI'] = 100 * (df['-DM'].rolling(window=window).mean() / df['TR'].rolling(window=window).mean())
+        df['DX'] = 100 * (abs(df['+DI'] - df['-DI']) / (df['+DI'] + df['-DI']))
         df['ADX'] = df['DX'].rolling(window=window).mean()
         
         fig = go.Figure()
-        fig.add_trace(go.Scatter(x=df.index, y=df['+DI'], mode='lines', name='+DI'))
-        fig.add_trace(go.Scatter(x=df.index, y=df['-DI'], mode='lines', name='-DI'))
         fig.add_trace(go.Scatter(x=df.index, y=df['ADX'], mode='lines', name='ADX'))
-        fig.update_layout(title='Average Directional Index (ADX)', xaxis_title='Date', yaxis_title='Value')
+        fig.update_layout(title='Average Directional Index (ADX)', xaxis_title='Date', yaxis_title='ADX')
         return fig
+    elif analysis_type == 'Volume-Weighted Average Price (VWAP)':
+        df['TP'] = (df['high'] + df['low'] + df['close']) / 3
+        df['TPV'] = df['TP'] * df['volume']
+        df['Cumulative TPV'] = df['TPV'].cumsum()
+        df['Cumulative Volume'] = df['volume'].cumsum()
+        df['VWAP'] = df['Cumulative TPV'] / df['Cumulative Volume']
+        
+        fig = go.Figure()
+        fig.add_trace(go.Scatter(x=df.index, y=df['close'], mode='lines', name='Close'))
+        fig.add_trace(go.Scatter(x=df.index, y=df['VWAP'], mode='lines', name='VWAP'))
+        fig.update_layout(title='Volume-Weighted Average Price (VWAP)', xaxis_title='Date', yaxis_title='Price')
+        return fig
+    else:
+        return None
 
-# Streamlit app
-st.title('Cryptocurrency Analysis')
+# Load models
+btc_model = load_model('https://github.com/I-r-a-j/crypto_analysis/blob/main/btc_model.pkl')
+eth_model = load_model('https://github.com/I-r-a-j/crypto_analysis/blob/main/eth_model.pkl')
+ltc_model = load_model('https://github.com/I-r-a-j/crypto_analysis/blob/main/ltc_model.pkl')
+doge_model = load_model('https://github.com/I-r-a-j/crypto_analysis/blob/main/doge_model.pkl')
 
-# Time selection
-st.sidebar.subheader('Select Time Period')
-end_date = datetime.now()
-start_date = end_date - timedelta(days=365 * 5)
+# Define the main function
+def main():
+    st.title("Cryptocurrency Dashboard")
 
-# User selection
-st.sidebar.subheader('Select a Cryptocurrency')
-crypto = st.sidebar.selectbox('Cryptocurrency', list(crypto_symbols.keys()))
-symbol = crypto_symbols[crypto]
+    symbols = ['BTC-USD', 'ETH-USD', 'LTC-USD', 'DOGE-USD']
 
-# Load data
-if st.button('Refresh Data') or 'data' not in st.session_state:
-    st.session_state.data = load_data(symbol, start_date, end_date)
-data = st.session_state.data
+    symbol_map = {
+        'BTC-USD': 'BTCUSDT',
+        'ETH-USD': 'ETHUSDT',
+        'LTC-USD': 'LTCUSDT',
+        'DOGE-USD': 'DOGEUSDT'
+    }
 
-# Date range selection
-st.sidebar.subheader('Select Date Range')
-date_range = st.sidebar.date_input('Select date range',
-                                   value=(data.index[0].date(), data.index[-1].date()),
-                                   min_value=data.index[0].date(),
-                                   max_value=data.index[-1].date())
-start_date, end_date = date_range
-filtered_data = data.loc[start_date:end_date]
+    # Sidebar options
+    symbol = st.sidebar.selectbox('Select Cryptocurrency', symbols)
+    start_date = st.sidebar.date_input('Start Date', datetime.today() - timedelta(days=365*5))
+    end_date = st.sidebar.date_input('End Date', datetime.today())
+    analysis_type = st.sidebar.selectbox('Select Technical Analysis', 
+                                         ['Moving Averages', 'RSI', 'MACD', 'Bollinger Bands', 'On-Balance Volume (OBV)', 
+                                          'Exponential Moving Averages (EMA)', 'Stochastic Oscillator', 'Average Directional Index (ADX)', 
+                                          'Volume-Weighted Average Price (VWAP)'])
 
-# Display data
-st.write(f"Showing data for {crypto} from {start_date} to {end_date}")
-st.dataframe(filtered_data)
+    if 'data' not in st.session_state:
+        st.session_state.data = {}
 
-# Input for cryptocurrency symbol
-crypto = st.selectbox('Select a cryptocurrency', ['BTC', 'ETH', 'LTC', 'DOGE'])
+    # Load data
+    st.session_state.data = load_data([symbol], start_date, end_date)
 
-# Mapping selected cryptocurrency to yfinance symbol
-symbol_mapping = {
-    'BTC': 'BTC-USD',
-    'ETH': 'ETH-USD',
-    'LTC': 'LTC-USD',
-    'DOGE': 'DOGE-USD'
-}
-symbol = symbol_mapping[crypto]
+    # Extract the selected DataFrame from the dictionary
+    df = st.session_state.data[symbol]
 
-# Download data
-end_date = datetime.now()
-start_date = end_date - timedelta(days=5*365)
-dfs = load_data(symbol_mapping.values(), start_date, end_date)
+    # Display candlestick chart
+    st.plotly_chart(plot_candlestick(df, symbol), use_container_width=True)
 
-# Interactive candlestick chart
-st.subheader(f'Interactive Candlestick Chart for {crypto}')
-st.line_chart(filtered_data[['Open', 'High', 'Low', 'Close']])
+    # Display technical analysis chart
+    st.plotly_chart(technical_analysis(df, analysis_type), use_container_width=True)
 
-# Select analysis type
-analysis_type = st.selectbox('Select Technical Analysis Type', [
-    'Moving Averages', 'RSI', 'MACD', 'Bollinger Bands', 'On-Balance Volume (OBV)',
-    'Exponential Moving Averages (EMA)', 'Stochastic Oscillator', 'Average Directional Index (ADX)'
-])
+    # TradingView technical analysis
+    tv_symbol = symbol_map[symbol]
+    handler = TA_Handler(symbol=tv_symbol, screener='crypto', exchange='binance', interval=Interval.INTERVAL_1_DAY)
+    analysis = handler.get_analysis()
+    st.write(f"TradingView Analysis for {symbol}")
+    st.write(f"Summary: {analysis.summary}")
+    st.write(f"Oscillators: {analysis.oscillators['COMPUTE']}")
+    st.write(f"Moving Averages: {analysis.moving_averages['COMPUTE']}")
 
-for ta in ta_options:
-    if ta == 'SMA':
-        filtered_data['SMA'] = filtered_data['Close'].rolling(window=20).mean()
-        st.line_chart(filtered_data[['Close', 'SMA']])
-    elif ta == 'EMA':
-        filtered_data['EMA'] = filtered_data['Close'].ewm(span=20, adjust=False).mean()
-        st.line_chart(filtered_data[['Close', 'EMA']])
-    elif ta == 'MACD':
-        filtered_data['MACD'] = filtered_data['Close'].ewm(span=12, adjust=False).mean() - filtered_data['Close'].ewm(span=26, adjust=False).mean()
-        st.line_chart(filtered_data[['Close', 'MACD']])
-    elif ta == 'RSI':
-        delta = filtered_data['Close'].diff(1)
-        gain = delta.where(delta > 0, 0)
-        loss = -delta.where(delta < 0, 0)
-        avg_gain = gain.rolling(window=14).mean()
-        avg_loss = loss.rolling(window=14).mean()
-        rs = avg_gain / avg_loss
-        filtered_data['RSI'] = 100 - (100 / (1 + rs))
-        st.line_chart(filtered_data[['Close', 'RSI']])
-    elif ta == 'Bollinger Bands':
-        filtered_data['SMA'] = filtered_data['Close'].rolling(window=20).mean()
-        filtered_data['Upper Band'] = filtered_data['SMA'] + 2 * filtered_data['Close'].rolling(window=20).std()
-        filtered_data['Lower Band'] = filtered_data['SMA'] - 2 * filtered_data['Close'].rolling(window=20).std()
-        st.line_chart(filtered_data[['Close', 'Upper Band', 'Lower Band']])
-
-
-# Technical analysis summary using tradingview_ta
-tv_symbol_mapping = {
-    'BTC': 'BTCUSDT',
-    'ETH': 'ETHUSDT',
-    'LTC': 'LTCUSDT',
-    'DOGE': 'DOGEUSDT'
-}
-tv_symbol = tv_symbol_mapping[crypto]
-
-# Fetch technical analysis summary
-try:
-    ta_handler = TA_Handler(
-        symbol=tv_symbol,
-        screener="crypto",
-        exchange="BINANCE",
-        interval=Interval.INTERVAL_1_DAY
-    )
-    ta_analysis = ta_handler.get_analysis()
-    summary = ta_analysis.summary
-
-    st.subheader(f'Technical Analysis Summary for {crypto}')
-    st.write(f"RECOMMENDATION: {summary['RECOMMENDATION']}")
-    st.write(f"BUY: {summary['BUY']}")
-    st.write(f"SELL: {summary['SELL']}")
-    st.write(f"NEUTRAL: {summary['NEUTRAL']}")
-except Exception as e:
-    st.error(f"Error fetching technical analysis summary: {e}")
-
-# Debugging: Display the current directory structure and model paths
-import os
-st.write("Current directory structure:")
-for root, dirs, files in os.walk(".", topdown=True):
-    for name in dirs:
-        st.write(os.path.join(root, name))
-    for name in files:
-        st.write(os.path.join(root, name))
-
-# Verify model paths
-btc_model_path = '/mnt/data/btc_model.pkl'
-eth_model_path = '/mnt/data/eth_model.pkl'
-ltc_model_path = '/mnt/data/ltc_model.pkl'
-doge_model_path = '/mnt/data/doge_model.pkl'
-
-st.write("Verifying model paths:")
-st.write(f"BTC model path exists: {os.path.exists(btc_model_path)}")
-st.write(f"ETH model path exists: {os.path.exists(eth_model_path)}")
-st.write(f"LTC model path exists: {os.path.exists(ltc_model_path)}")
-st.write(f"DOGE model path exists: {os.path.exists(doge_model_path)}")
-
-# Load model based on selected cryptocurrency
-model_mapping = {
-    'BTC': btc_model_path,
-    'ETH': eth_model_path,
-    'LTC': ltc_model_path,
-    'DOGE': doge_model_path
-}
-
-try:
-    model_path = model_mapping[crypto]
-    model = load_model(model_path)
-    st.write(f"{crypto} model loaded successfully.")
-except Exception as e:
-    st.error(f"Error loading {crypto} model: {e}")
+if __name__ == '__main__':
+    main()
