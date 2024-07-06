@@ -4,6 +4,7 @@ import pandas as pd
 import plotly.graph_objects as go
 from datetime import datetime, timedelta
 from tradingview_ta import TA_Handler, Interval
+from pycaret.time_series import load_model
 
 # Function to load data
 def load_data(symbols, start_date, end_date):
@@ -190,15 +191,53 @@ tv_symbol_mapping = {
 tv_symbol = tv_symbol_mapping[crypto]
 
 # Fetch technical analysis summary
-ta_handler = TA_Handler(
-    symbol=tv_symbol,
-    screener="crypto",
-    exchange="BINANCE",
-    interval=Interval.INTERVAL_1_DAY
-)
+try:
+    ta_handler = TA_Handler(
+        symbol=tv_symbol,
+        screener="crypto",
+        exchange="BINANCE",
+        interval=Interval.INTERVAL_1_DAY
+    )
+    ta_analysis = ta_handler.get_analysis()
+    summary = ta_analysis.summary
 
-ta_analysis = ta_handler.get_analysis()
-summary = ta_analysis.summary
+    st.subheader(f'Technical Analysis Summary for {crypto}')
+    st.write(summary)
+except Exception as e:
+    st.error(f"Error fetching technical analysis summary: {e}")
 
-st.subheader(f'Technical Analysis Summary for {crypto}')
-st.write(summary)
+# Debugging: Display the current directory structure and model paths
+import os
+st.write("Current directory structure:")
+for root, dirs, files in os.walk(".", topdown=True):
+    for name in dirs:
+        st.write(os.path.join(root, name))
+    for name in files:
+        st.write(os.path.join(root, name))
+
+# Verify model paths
+btc_model_path = '/mnt/data/btc_model.pkl'
+eth_model_path = '/mnt/data/eth_model.pkl'
+ltc_model_path = '/mnt/data/ltc_model.pkl'
+doge_model_path = '/mnt/data/doge_model.pkl'
+
+st.write("Verifying model paths:")
+st.write(f"BTC model path exists: {os.path.exists(btc_model_path)}")
+st.write(f"ETH model path exists: {os.path.exists(eth_model_path)}")
+st.write(f"LTC model path exists: {os.path.exists(ltc_model_path)}")
+st.write(f"DOGE model path exists: {os.path.exists(doge_model_path)}")
+
+# Load model based on selected cryptocurrency
+model_mapping = {
+    'BTC': btc_model_path,
+    'ETH': eth_model_path,
+    'LTC': ltc_model_path,
+    'DOGE': doge_model_path
+}
+
+try:
+    model_path = model_mapping[crypto]
+    model = load_model(model_path)
+    st.write(f"{crypto} model loaded successfully.")
+except Exception as e:
+    st.error(f"Error loading {crypto} model: {e}")
