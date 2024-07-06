@@ -167,15 +167,15 @@ end_date = datetime.now()
 start_date = end_date - timedelta(days=5*365)
 dfs = load_data(symbol_mapping.values(), start_date, end_date)
 
+# Plot candlestick chart
+candlestick_fig = plot_candlestick(dfs[symbol], symbol)
+st.plotly_chart(candlestick_fig)
+
 # Select analysis type
 analysis_type = st.selectbox('Select Technical Analysis Type', [
     'Moving Averages', 'RSI', 'MACD', 'Bollinger Bands', 'On-Balance Volume (OBV)',
     'Exponential Moving Averages (EMA)', 'Stochastic Oscillator', 'Average Directional Index (ADX)'
 ])
-
-# Plot candlestick chart
-candlestick_fig = plot_candlestick(dfs[symbol], symbol)
-st.plotly_chart(candlestick_fig)
 
 # Plot technical analysis
 tech_analysis_fig = technical_analysis(dfs[symbol], analysis_type)
