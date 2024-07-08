@@ -173,10 +173,6 @@ end_date = st.date_input("End Date", datetime.now())
 dfs = load_data(symbols, start_date, end_date)
 df = dfs[symbol]
 
-# Show raw data
-st.subheader(f'Raw data for {symbol}')
-st.write(df.tail())
-
 # Plot candlestick chart
 st.subheader(f'Interactive Candlestick Chart for {symbol}')
 fig = plot_candlestick(df, symbol)
