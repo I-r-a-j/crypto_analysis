@@ -222,10 +222,24 @@ else:
 
 # RSI Signal Recommendation
 st.subheader('RSI Signal Recommendation')
-latest_rsi = dfs[selected_symbol]['RSI'].iloc[-1]
+
+# Ensure RSI is calculated before making a recommendation
+df = dfs[selected_symbol]
+df['Price Change'] = df['close'].diff()
+df['Gain'] = df['Price Change'].apply(lambda x: x if x > 0 else 0)
+df['Loss'] = df['Price Change'].apply(lambda x: abs(x) if x < 0 else 0)
+window = 14
+df['Avg Gain'] = df['Gain'].rolling(window=window, min_periods=1).mean()
+df['Avg Loss'] = df['Loss'].rolling(window=window, min_periods=1).mean()
+df['RS'] = df['Avg Gain'] / df['Avg Loss']
+df['RSI'] = 100 - (100 / (1 + df['RS']))
+
+# Calculate RSI and provide recommendation
+latest_rsi = df['RSI'].iloc[-1]
 if latest_rsi > 70:
     st.write("The RSI signal indicates the asset is **overbought**. Consider selling.")
 elif latest_rsi < 30:
     st.write("The RSI signal indicates the asset is **oversold**. Consider buying.")
 else:
     st.write("The RSI signal indicates the asset is **neutral**. No clear action recommended.")
+
