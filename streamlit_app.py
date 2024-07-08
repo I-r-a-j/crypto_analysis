@@ -13,7 +13,7 @@ def load_data(symbols, start_date, end_date):
         df.columns = [col.lower().replace(' ', '_') for col in df.columns]
         dfs[symbol] = df
     return dfs
-    
+
 # Function to plot candlestick chart
 def plot_candlestick(df, symbol):
     fig = go.Figure(data=[go.Candlestick(
@@ -30,6 +30,7 @@ def plot_candlestick(df, symbol):
         xaxis_rangeslider_visible=True
     )
     return fig
+
 # Function for technical analysis
 def technical_analysis(df, analysis_type):
     if analysis_type == 'Moving Averages':
@@ -130,13 +131,12 @@ def technical_analysis(df, analysis_type):
         df['TR'] = df[['H-L', 'H-PC', 'L-PC']].max(axis=1)
         df['+DM'] = (df['high'] - df['high'].shift(1)).clip(lower=0)
         df['-DM'] = (df['low'].shift(1) - df['low']).clip(lower=0)
-        df['+DM'] = df['+DM'][df['+DM'] > df['-DM']]
-        df['-DM'] = df['-DM'][df['-DM'] > df['+DM']]
-        df['ATR'] = df['TR'].rolling(window=window).mean()
-        df['+DI'] = (df['+DM'] / df['ATR']).rolling(window=window).mean() * 100
-        df['-DI'] = (df['-DM'] / df['ATR']).rolling(window=window).mean() * 100
-        df['DX'] = (abs(df['+DI'] - df['-DI']) / abs(df['+DI'] + df['-DI'])) * 100
-        df['ADX'] = df['DX'].rolling(window=window).mean()
+        df['+DM'] = df['+DM'].where(df['+DM'] > df['-DM'], 0)
+        df['-DM'] = df['-DM'].where(df['-DM'] > df['+DM'], 0)
+        df['+DI'] = 100 * (df['+DM'].ewm(alpha=1/window).mean() / df['TR'].ewm(alpha=1/window).mean())
+        df['-DI'] = 100 * (df['-DM'].ewm(alpha=1/window).mean() / df['TR'].ewm(alpha=1/window).mean())
+        df['DX'] = 100 * abs(df['+DI'] - df['-DI']) / (df['+DI'] + df['-DI'])
+        df['ADX'] = df['DX'].ewm(alpha=1/window).mean()
         
         fig = go.Figure()
         fig.add_trace(go.Scatter(x=df.index, y=df['+DI'], mode='lines', name='+DI'))
@@ -144,61 +144,66 @@ def technical_analysis(df, analysis_type):
         fig.add_trace(go.Scatter(x=df.index, y=df['ADX'], mode='lines', name='ADX'))
         fig.update_layout(title='Average Directional Index (ADX)', xaxis_title='Date', yaxis_title='Value')
         return fig
+    elif analysis_type == 'Commodity Channel Index (CCI)':
+        window = 20
+        df['TP'] = (df['high'] + df['low'] + df['close']) / 3
+        df['MA-TP'] = df['TP'].rolling(window=window).mean()
+        df['MD-TP'] = df['TP'].rolling(window=window).apply(lambda x: pd.Series(x).mad())
+        df['CCI'] = (df['TP'] - df['MA-TP']) / (0.015 * df['MD-TP'])
+        
+        fig = go.Figure()
+        fig.add_trace(go.Scatter(x=df.index, y=df['CCI'], mode='lines', name='CCI'))
+        fig.add_hline(y=100, line_dash="dash", line_color="red", annotation_text="Overbought")
+        fig.add_hline(y=-100, line_dash="dash", line_color="green", annotation_text="Oversold")
+        fig.update_layout(title='Commodity Channel Index (CCI)', xaxis_title='Date', yaxis_title='Value')
+        return fig
 
-# Streamlit app
+# Main app
+st.title("Cryptocurrency Analysis App")
 
-st.title('Cryptocurrency Analysis')
+# Symbol selection
+symbols = ['BTC-USD', 'ETH-USD', 'LTC-USD', 'DOGE-USD']
+symbol = st.selectbox("Select Cryptocurrency Symbol", symbols)
 
-# Input for cryptocurrency symbol
-crypto = st.selectbox('Select a cryptocurrency', ['BTC', 'ETH', 'LTC', 'DOGE'])
-# Mapping selected cryptocurrency to yfinance symbol
-symbol_mapping = {
-    'BTC': 'BTC-USD',
-    'ETH': 'ETH-USD',
-    'LTC': 'LTC-USD',
-    'DOGE': 'DOGE-USD'
-}
-symbol = symbol_mapping[crypto]
-# Download data
-end_date = datetime.now()
-start_date = end_date - timedelta(days=5*365)
-dfs = load_data(symbol_mapping.values(), start_date, end_date)
+# Time range selection
+start_date = st.date_input("Start Date", datetime.now() - timedelta(days=365*5))
+end_date = st.date_input("End Date", datetime.now())
+
+# Load data
+dfs = load_data(symbols, start_date, end_date)
+df = dfs[symbol]
+
+# Show raw data
+st.subheader(f'Raw data for {symbol}')
+st.write(df.tail())
 
 # Plot candlestick chart
-candlestick_fig = plot_candlestick(dfs[symbol], symbol)
-st.plotly_chart(candlestick_fig)
-# Select analysis type
-analysis_type = st.selectbox('Select Technical Analysis Type', [
-    'Moving Averages', 'RSI', 'MACD', 'Bollinger Bands', 'On-Balance Volume (OBV)',
-    'Exponential Moving Averages (EMA)', 'Stochastic Oscillator', 'Average Directional Index (ADX)'
-])
+st.subheader(f'Interactive Candlestick Chart for {symbol}')
+fig = plot_candlestick(df, symbol)
+st.plotly_chart(fig)
 
-# Plot technical analysis
-tech_analysis_fig = technical_analysis(dfs[symbol], analysis_type)
-st.plotly_chart(tech_analysis_fig)
-# Technical analysis summary using tradingview_ta
-tv_symbol_mapping = {
-    'BTC': 'BTCUSDT',
-    'ETH': 'ETHUSDT',
-    'LTC': 'LTCUSDT',
-    'DOGE': 'DOGEUSDT'
-}
-tv_symbol = tv_symbol_mapping[crypto]
+# Technical analysis options
+analysis_types = ['Moving Averages', 'RSI', 'MACD', 'Bollinger Bands', 'On-Balance Volume (OBV)',
+                  'Exponential Moving Averages (EMA)', 'Stochastic Oscillator', 'Average Directional Index (ADX)',
+                  'Commodity Channel Index (CCI)']
+analysis_type = st.selectbox("Select Technical Analysis Type", analysis_types)
 
-# Fetch technical analysis summary
-try:
-    ta_handler = TA_Handler(
-        symbol=tv_symbol,
-        screener="crypto",
-        exchange="BINANCE",
-        interval=Interval.INTERVAL_1_DAY
-    )
-    ta_analysis = ta_handler.get_analysis()
-    summary = ta_analysis.summary
-    st.subheader(f'Technical Analysis Summary for {crypto}')
-    st.write(f"RECOMMENDATION: {summary['RECOMMENDATION']}")
-    st.write(f"BUY: {summary['BUY']}")
-    st.write(f"SELL: {summary['SELL']}")
-    st.write(f"NEUTRAL: {summary['NEUTRAL']}")
-except Exception as e:
-    st.error(f"Error fetching technical analysis summary: {e}")
+# Plot technical analysis chart
+st.subheader(f'{analysis_type} for {symbol}')
+fig = technical_analysis(df, analysis_type)
+st.plotly_chart(fig)
+
+# TradingView technical analysis
+st.subheader(f'TradingView Technical Analysis for {symbol}')
+tv_symbol = symbol.replace('-', '').replace('USD', 'USDT')
+handler = TA_Handler(
+    symbol=tv_symbol,
+    exchange="BINANCE",
+    screener="crypto",
+    interval=Interval.INTERVAL_1_DAY
+)
+analysis = handler.get_analysis()
+st.write("Summary:", analysis.summary)
+st.write("Oscillators:", analysis.oscillators)
+st.write("Moving Averages:", analysis.moving_averages)
+st.write("Indicators:", analysis.indicators)
