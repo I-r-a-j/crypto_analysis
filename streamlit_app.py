@@ -200,6 +200,4 @@ handler = TA_Handler(
 )
 analysis = handler.get_analysis()
 st.write("Summary:", analysis.summary)
-st.write("Oscillators:", analysis.oscillators)
-st.write("Moving Averages:", analysis.moving_averages)
-st.write("Indicators:", analysis.indicators)
+
