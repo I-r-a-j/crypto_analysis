@@ -33,7 +33,7 @@ def plot_candlestick(df, symbol):
 
 # Function for technical analysis
 def technical_analysis(df, analysis_type):
-    if analysis_type == 'Moving Averages':
+    if (analysis_type == 'Moving Averages'):
         df['MA20'] = df['close'].rolling(window=20).mean()
         df['MA50'] = df['close'].rolling(window=50).mean()
         df['MA100'] = df['close'].rolling(window=100).mean()
@@ -133,85 +133,89 @@ def technical_analysis(df, analysis_type):
         df['-DM'] = df['low'].diff()
         df['+DM'] = df['+DM'].where((df['+DM'] > df['-DM']) & (df['+DM'] > 0), 0)
         df['-DM'] = df['-DM'].where((df['-DM'] > df['+DM']) & (df['-DM'] > 0), 0)
-        df['+DI'] = 100 * (df['+DM'].ewm(alpha=1/window).mean() / df['TR'].ewm(alpha=1/window).mean())
-        df['-DI'] = 100 * (df['-DM'].ewm(alpha=1/window).mean() / df['TR'].ewm(alpha=1/window).mean())
-        df['DX'] = 100 * abs(df['+DI'] - df['-DI']) / (df['+DI'] + df['-DI'])
-        df['ADX'] = df['DX'].ewm(alpha=1/window).mean()
+        df['TR14'] = df['TR'].rolling(window=window).sum()
+        df['+DM14'] = df['+DM'].rolling(window=window).sum()
+        df['-DM14'] = df['-DM'].rolling(window=window).sum()
+        df['+DI14'] = 100 * (df['+DM14'] / df['TR14'])
+        df['-DI14'] = 100 * (df['-DM14'] / df['TR14'])
+        df['DI Diff'] = abs(df['+DI14'] - df['-DI14'])
+        df['DI Sum'] = df['+DI14'] + df['-DI14']
+        df['DX'] = 100 * (df['DI Diff'] / df['DI Sum'])
+        df['ADX'] = df['DX'].rolling(window=window).mean()
         
         fig = go.Figure()
-        fig.add_trace(go.Scatter(x=df.index, y=df['+DI'], mode='lines', name='+DI'))
-        fig.add_trace(go.Scatter(x=df.index, y=df['-DI'], mode='lines', name='-DI'))
         fig.add_trace(go.Scatter(x=df.index, y=df['ADX'], mode='lines', name='ADX'))
-        fig.update_layout(title='Average Directional Index (ADX)', xaxis_title='Date', yaxis_title='Value')
-        return fig
-    elif analysis_type == 'Commodity Channel Index (CCI)':
-        window = 20
-        df['TP'] = (df['high'] + df['low'] + df['close']) / 3
-        df['MA-TP'] = df['TP'].rolling(window=window).mean()
-        df['MD-TP'] = df['TP'].rolling(window=window).apply(lambda x: pd.Series(x).mad())
-        df['CCI'] = (df['TP'] - df['MA-TP']) / (0.015 * df['MD-TP'])
-        
-        fig = go.Figure()
-        fig.add_trace(go.Scatter(x=df.index, y=df['CCI'], mode='lines', name='CCI'))
-        fig.add_hline(y=100, line_dash="dash", line_color="red", annotation_text="Overbought")
-        fig.add_hline(y=-100, line_dash="dash", line_color="green", annotation_text="Oversold")
-        fig.update_layout(title='Commodity Channel Index (CCI)', xaxis_title='Date', yaxis_title='Value')
+        fig.update_layout(title='Average Directional Index (ADX)', xaxis_title='Date', yaxis_title='ADX')
         return fig
 
-# Main app
-st.title("Cryptocurrency Analysis App")
+# Function to get tradingview recommendation
+def get_tradingview_recommendation(tv_symbol):
+    handler = TA_Handler(
+        symbol=tv_symbol,
+        exchange='BINANCE',
+        screener='crypto',
+        interval=Interval.INTERVAL_1_DAY
+    )
+    return handler.get_analysis().summary
 
-# Symbol selection
-symbols = ['BTC-USD', 'ETH-USD', 'LTC-USD', 'DOGE-USD']
-symbol = st.selectbox("Select Cryptocurrency Symbol", symbols)
+# Streamlit app layout
+st.title('Cryptocurrency Analysis Dashboard')
+st.sidebar.title('Options')
 
-# Time range selection
-start_date = st.date_input("Start Date", datetime.now() - timedelta(days=365*5))
-end_date = st.date_input("End Date", datetime.now())
+# Define the cryptocurrency symbols
+symbols = {
+    'Bitcoin (BTC)': 'BTC-USD',
+    'Ethereum (ETH)': 'ETH-USD',
+    'Litecoin (LTC)': 'LTC-USD',
+    'Dogecoin (DOGE)': 'DOGE-USD'
+}
+
+# Create a dictionary to map tradingview symbols
+tv_symbols = {
+    'BTC-USD': 'BTCUSDT',
+    'ETH-USD': 'ETHUSDT',
+    'LTC-USD': 'LTCUSDT',
+    'DOGE-USD': 'DOGEUSDT'
+}
+
+# Sidebar selection for cryptocurrency
+selected_crypto = st.sidebar.selectbox('Select Cryptocurrency', list(symbols.keys()))
+selected_symbol = symbols[selected_crypto]
+tv_symbol = tv_symbols[selected_symbol]
+
+# Sidebar date selection
+today = datetime.today()
+one_year_ago = today - timedelta(days=365)
+start_date = st.sidebar.date_input('Start Date', one_year_ago)
+end_date = st.sidebar.date_input('End Date', today)
 
 # Load data
-dfs = load_data(symbols, start_date, end_date)
-df = dfs[symbol]
+dfs = load_data(symbols.values(), start_date, end_date)
 
 # Plot candlestick chart
-st.subheader(f'Interactive Candlestick Chart for {symbol}')
-fig = plot_candlestick(df, symbol)
-st.plotly_chart(fig)
+st.plotly_chart(plot_candlestick(dfs[selected_symbol], selected_crypto))
 
-# Technical analysis options
-analysis_types = ['Moving Averages', 'RSI', 'MACD', 'Bollinger Bands', 'On-Balance Volume (OBV)',
-                  'Exponential Moving Averages (EMA)', 'Stochastic Oscillator', 'Average Directional Index (ADX)',
-                  'Commodity Channel Index (CCI)']
-analysis_type = st.selectbox("Select Technical Analysis Type", analysis_types)
+# Sidebar selection for technical analysis
+analysis_type = st.sidebar.selectbox('Select Technical Analysis', [
+    'Moving Averages', 'RSI', 'MACD', 'Bollinger Bands',
+    'On-Balance Volume (OBV)', 'Exponential Moving Averages (EMA)',
+    'Stochastic Oscillator', 'Average Directional Index (ADX)'
+])
 
-# Plot technical analysis chart
-st.subheader(f'{analysis_type} for {symbol}')
-fig = technical_analysis(df, analysis_type)
-st.plotly_chart(fig)
+# Perform technical analysis and plot the result
+st.plotly_chart(technical_analysis(dfs[selected_symbol], analysis_type))
 
-# TradingView technical analysis
-st.subheader(f'TradingView Technical Analysis for {symbol}')
-tv_symbol = symbol.replace('-', '').replace('USD', 'USDT')
-handler = TA_Handler(
-    symbol=tv_symbol,
-    exchange="BINANCE",
-    screener="crypto",
-    interval=Interval.INTERVAL_1_DAY
-)
-analysis = handler.get_analysis()
-st.write("Summary:", analysis.summary)
-
-
-# TradingView recommendations
+# TradingView technical analysis recommendations
 st.subheader('TradingView Recommendations')
-st.write("Moving Averages (MA):", analysis.moving_averages.get('RECOMMENDATION', 'N/A'))
-st.write("Simple Moving Average (SMA):", analysis.moving_averages.get('RECOMMENDATION', 'N/A'))
-st.write("Exponential Moving Average (EMA):", analysis.moving_averages.get('RECOMMENDATION', 'N/A'))
-st.write("Relative Strength Index (RSI):", analysis.oscillators.get('RECOMMENDATION', 'N/A'))
-st.write("Stochastic Oscillator (Stoch):", analysis.oscillators.get('RECOMMENDATION', 'N/A'))
-st.write("Moving Average Convergence Divergence (MACD):", analysis.oscillators.get('RECOMMENDATION', 'N/A'))
-st.write("Average Directional Index (ADX):", analysis.indicators.get('RECOMMENDATION', 'N/A'))
-st.write("Ichimoku Cloud (Ichimoku):", analysis.indicators.get('RECOMMENDATION', 'N/A'))
-st.write("Bollinger Bands (BB):", analysis.indicators.get('RECOMMENDATION', 'N/A'))
-st.write("Chaikin Money Flow (CMF):", analysis.indicators.get('RECOMMENDATION', 'N/A'))
-st.write("Fibonacci Retracement Levels:", analysis.indicators.get('RECOMMENDATION', 'N/A'))
+recommendations = get_tradingview_recommendation(tv_symbol)
+st.write(recommendations)
+
+# Moving Average Signal Recommendation
+st.subheader('Moving Average Signal Recommendation')
+latest_data = dfs[selected_symbol].iloc[-1]
+if latest_data['MA20'] > latest_data['MA50'] and latest_data['MA50'] > latest_data['MA100']:
+    st.write("The moving average signal indicates a **strong buy** recommendation.")
+elif latest_data['MA20'] < latest_data['MA50'] and latest_data['MA50'] < latest_data['MA100']:
+    st.write("The moving average signal indicates a **strong sell** recommendation.")
+else:
+    st.write("The moving average signal indicates a **hold** recommendation.")
