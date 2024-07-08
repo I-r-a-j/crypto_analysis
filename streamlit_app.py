@@ -213,5 +213,5 @@ st.write("Moving Average Convergence Divergence (MACD):", analysis.oscillators.g
 st.write("Average Directional Index (ADX):", analysis.indicators.get('RECOMMENDATION', 'N/A'))
 st.write("Ichimoku Cloud (Ichimoku):", analysis.indicators.get('RECOMMENDATION', 'N/A'))
 st.write("Bollinger Bands (BB):", analysis.indicators.get('RECOMMENDATION', 'N/A'))
-st.write("On-Balance Volume (OBV):", analysis.indicators.get('RECOMMENDATION', 'N/A'))
+st.write("Chaikin Money Flow (CMF):", analysis.indicators.get('RECOMMENDATION', 'N/A'))
 st.write("Fibonacci Retracement Levels:", analysis.indicators.get('RECOMMENDATION', 'N/A'))
