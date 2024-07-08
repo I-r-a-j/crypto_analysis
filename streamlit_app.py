@@ -219,3 +219,13 @@ elif latest_data['MA20'] < latest_data['MA50'] and latest_data['MA50'] < latest_
     st.write("The moving average signal indicates a **strong sell** recommendation.")
 else:
     st.write("The moving average signal indicates a **hold** recommendation.")
+
+# RSI Signal Recommendation
+st.subheader('RSI Signal Recommendation')
+latest_rsi = dfs[selected_symbol]['RSI'].iloc[-1]
+if latest_rsi > 70:
+    st.write("The RSI signal indicates the asset is **overbought**. Consider selling.")
+elif latest_rsi < 30:
+    st.write("The RSI signal indicates the asset is **oversold**. Consider buying.")
+else:
+    st.write("The RSI signal indicates the asset is **neutral**. No clear action recommended.")
