@@ -328,4 +328,25 @@ elif latest_close < latest_ema20 < latest_ema50 < latest_ema100 < latest_ema200:
 else:
     st.write("The EMA signal indicates a **neutral** trend. No clear action recommended.")
 
+# Stochastic Oscillator Signal Recommendation
+st.subheader('Stochastic Oscillator Signal Recommendation')
+
+# Ensure Stochastic Oscillator is calculated before making a recommendation
+window = 14
+smooth_window = 3
+df['Lowest Low'] = df['low'].rolling(window=window).min()
+df['Highest High'] = df['high'].rolling(window=window).max()
+df['%K'] = ((df['close'] - df['Lowest Low']) / (df['Highest High'] - df['Lowest Low'])) * 100
+df['%D'] = df['%K'].rolling(window=smooth_window).mean()
+
+# Calculate Stochastic Oscillator signals and provide recommendation
+latest_k = df['%K'].iloc[-1]
+latest_d = df['%D'].iloc[-1]
+
+if latest_k > 80 and latest_d > 80:
+    st.write("The Stochastic Oscillator indicates an **overbought** condition. Consider selling.")
+elif latest_k < 20 and latest_d < 20:
+    st.write("The Stochastic Oscillator indicates an **oversold** condition. Consider buying.")
+else:
+    st.write("The Stochastic Oscillator indicates a **neutral** condition. No clear action recommended.")
 
