@@ -475,15 +475,10 @@ elif latest_close < latest_senkou_span_a and latest_close < latest_senkou_span_b
 else:
     st.write("The Ichimoku Cloud signal indicates a **neutral** trend. No clear action recommended.")
 
-# Engulfing Pattern Signal Recommendation
-st.subheader('Engulfing Pattern Signal Recommendation')
-
-# Detect Engulfing patterns
-df = detect_engulfing_pattern(df)
-
-# Provide recommendation based on the latest detected Engulfing pattern
+# Engulfing pattern recommendation
 latest_engulfing_pattern = df['Engulfing'].iloc[-1]
 
+st.subheader('Engulfing Pattern Signal Recommendation')
 if latest_engulfing_pattern == 'Bullish Engulfing':
     st.write("The latest candlestick pattern indicates a **Bullish Engulfing**. Consider buying.")
 elif latest_engulfing_pattern == 'Bearish Engulfing':
