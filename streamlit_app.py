@@ -172,6 +172,7 @@ def technical_analysis(df, analysis_type):
         fig.add_trace(go.Scatter(x=df[df['Bearish Engulfing']].index, y=df[df['Bearish Engulfing']]['high'], mode='markers', marker=dict(symbol='triangle-down', size=10, color='red'), name='Bearish Engulfing'))
         fig.update_layout(title='Engulfing Pattern', xaxis_title='Date', yaxis_title='Price')
         return fig
+        
      elif analysis_type == 'Fibonacci Retracement':
         # Find the highest high and lowest low in the dataset
         highest_high = df['high'].max()
