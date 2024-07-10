@@ -172,6 +172,25 @@ def technical_analysis(df, analysis_type):
         fig.add_trace(go.Scatter(x=df[df['Bearish Engulfing']].index, y=df[df['Bearish Engulfing']]['high'], mode='markers', marker=dict(symbol='triangle-down', size=10, color='red'), name='Bearish Engulfing'))
         fig.update_layout(title='Engulfing Pattern', xaxis_title='Date', yaxis_title='Price')
         return fig
+     elif analysis_type == 'Fibonacci Retracement':
+    # Find the highest high and lowest low in the dataset
+        highest_high = df['high'].max()
+        lowest_low = df['low'].min()
+    
+    # Calculate Fibonacci levels
+        diff = highest_high - lowest_low
+        levels = [0, 0.236, 0.382, 0.5, 0.618, 0.786, 1]
+        fib_levels = [highest_high - l * diff for l in levels]
+    
+        fig = go.Figure()
+        fig.add_trace(go.Candlestick(x=df.index, open=df['open'], high=df['high'], low=df['low'], close=df['close'], name='Price'))
+    
+        colors = ['purple', 'blue', 'green', 'yellow', 'orange', 'red', 'crimson']
+        for fib, level, color in zip(fib_levels, levels, colors):
+            fig.add_hline(y=fib, line_dash="dash", line_color=color, annotation_text=f"{level:.3f}", annotation_position="left")
+    
+        fig.update_layout(title='Fibonacci Retracement Levels', xaxis_title='Date', yaxis_title='Price')
+        return fig
 # Function to get tradingview recommendation
 def get_tradingview_recommendation(tv_symbol):
     handler = TA_Handler(
@@ -215,7 +234,7 @@ st.plotly_chart(plot_candlestick(dfs[selected_symbol], selected_crypto))
 analysis_type = st.sidebar.selectbox('Select Technical Analysis', [
     'Moving Averages', 'RSI', 'MACD', 'Bollinger Bands',
     'On-Balance Volume (OBV)', 'Exponential Moving Averages (EMA)',
-    'Stochastic Oscillator', 'Average Directional Index (ADX)', 'Ichimoku Cloud' ,'Engulfing Pattern'
+    'Stochastic Oscillator', 'Average Directional Index (ADX)', 'Ichimoku Cloud' ,'Engulfing Pattern', 'Fibonacci Retracement'
 ])
 # Perform technical analysis and plot the result
 st.plotly_chart(technical_analysis(dfs[selected_symbol], analysis_type))
@@ -414,3 +433,34 @@ elif bullish_engulfing and bearish_engulfing:
     st.write("Both Bullish and Bearish Engulfing patterns have been detected recently. The market may be volatile. Exercise caution.")
 else:
     st.write("No clear Engulfing patterns have been detected recently. The trend is unclear based on this indicator alone.")
+
+# Fibonacci Retracement Signal Recommendation
+st.subheader('Fibonacci Retracement Signal Recommendation')
+
+# Calculate Fibonacci levels
+highest_high = df['high'].max()
+lowest_low = df['low'].min()
+diff = highest_high - lowest_low
+levels = [0, 0.236, 0.382, 0.5, 0.618, 0.786, 1]
+fib_levels = [highest_high - l * diff for l in levels]
+
+# Get the latest closing price
+latest_close = df['close'].iloc[-1]
+
+# Determine which Fibonacci levels the price is between
+for i in range(len(fib_levels) - 1):
+    if fib_levels[i+1] <= latest_close <= fib_levels[i]:
+        lower_level = levels[i+1]
+        upper_level = levels[i]
+        break
+
+st.write(f"The current price is between the {lower_level:.3f} and {upper_level:.3f} Fibonacci retracement levels.")
+
+if latest_close > fib_levels[3]:  # Above 0.5 level
+    st.write("The price is in the upper half of the Fibonacci range, suggesting a **bullish** trend. Consider buying or holding, but be aware of potential resistance at higher levels.")
+elif latest_close < fib_levels[3]:  # Below 0.5 level
+    st.write("The price is in the lower half of the Fibonacci range, suggesting a **bearish** trend. Consider selling or waiting for a bounce, but be aware of potential support at lower levels.")
+else:
+    st.write("The price is at the 0.5 Fibonacci level, which is often considered a pivotal point. The trend could go either way from here. Consider waiting for a clearer signal.")
+
+st.write("Remember that Fibonacci retracement levels are best used in conjunction with other technical indicators for more reliable trading signals.")
