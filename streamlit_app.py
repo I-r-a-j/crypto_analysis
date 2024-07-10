@@ -133,19 +133,16 @@ def technical_analysis(df, analysis_type):
         df['-DM'] = df['low'].diff()
         df['+DM'] = df['+DM'].where((df['+DM'] > df['-DM']) & (df['+DM'] > 0), 0)
         df['-DM'] = df['-DM'].where((df['-DM'] > df['+DM']) & (df['-DM'] > 0), 0)
-        df['TR14'] = df['TR'].rolling(window=window).sum()
-        df['+DM14'] = df['+DM'].rolling(window=window).sum()
-        df['-DM14'] = df['-DM'].rolling(window=window).sum()
-        df['+DI14'] = 100 * (df['+DM14'] / df['TR14'])
-        df['-DI14'] = 100 * (df['-DM14'] / df['TR14'])
-        df['DI Diff'] = abs(df['+DI14'] - df['-DI14'])
-        df['DI Sum'] = df['+DI14'] + df['-DI14']
-        df['DX'] = 100 * (df['DI Diff'] / df['DI Sum'])
-        df['ADX'] = df['DX'].rolling(window=window).mean()
+        df['+DI'] = 100 * (df['+DM'].ewm(alpha=1/window).mean() / df['TR'].ewm(alpha=1/window).mean())
+        df['-DI'] = 100 * (df['-DM'].ewm(alpha=1/window).mean() / df['TR'].ewm(alpha=1/window).mean())
+        df['DX'] = 100 * abs(df['+DI'] - df['-DI']) / (df['+DI'] + df['-DI'])
+        df['ADX'] = df['DX'].ewm(alpha=1/window).mean()
         
         fig = go.Figure()
+        fig.add_trace(go.Scatter(x=df.index, y=df['+DI'], mode='lines', name='+DI'))
+        fig.add_trace(go.Scatter(x=df.index, y=df['-DI'], mode='lines', name='-DI'))
         fig.add_trace(go.Scatter(x=df.index, y=df['ADX'], mode='lines', name='ADX'))
-        fig.update_layout(title='Average Directional Index (ADX)', xaxis_title='Date', yaxis_title='ADX')
+        fig.update_layout(title='Average Directional Index (ADX)', xaxis_title='Date', yaxis_title='Value')
         return fig
 
 # Function to get tradingview recommendation
@@ -350,3 +347,32 @@ elif latest_k < 20 and latest_d < 20:
 else:
     st.write("The Stochastic Oscillator indicates a **neutral** condition. No clear action recommended.")
 
+# ADX Signal Recommendation
+st.subheader('Average Directional Index (ADX) Signal Recommendation')
+
+# Ensure ADX is calculated before making a recommendation
+window = 14
+df['H-L'] = df['high'] - df['low']
+df['H-PC'] = abs(df['high'] - df['close'].shift(1))
+df['L-PC'] = abs(df['low'] - df['close'].shift(1))
+df['TR'] = df[['H-L', 'H-PC', 'L-PC']].max(axis=1)
+df['+DM'] = df['high'].diff()
+df['-DM'] = df['low'].diff()
+df['+DM'] = df['+DM'].where((df['+DM'] > df['-DM']) & (df['+DM'] > 0), 0)
+df['-DM'] = df['-DM'].where((df['-DM'] > df['+DM']) & (df['-DM'] > 0), 0)
+df['+DI'] = 100 * (df['+DM'].ewm(alpha=1/window).mean() / df['TR'].ewm(alpha=1/window).mean())
+df['-DI'] = 100 * (df['-DM'].ewm(alpha=1/window).mean() / df['TR'].ewm(alpha=1/window).mean())
+df['DX'] = 100 * abs(df['+DI'] - df['-DI']) / (df['+DI'] + df['-DI'])
+df['ADX'] = df['DX'].ewm(alpha=1/window).mean()
+
+# Calculate ADX signals and provide recommendation
+latest_adx = df['ADX'].iloc[-1]
+latest_pdi = df['+DI'].iloc[-1]
+latest_ndi = df['-DI'].iloc[-1]
+
+if latest_adx > 25 and latest_pdi > latest_ndi:
+    st.write("The ADX signal indicates a **strong bullish** trend. Consider buying.")
+elif latest_adx > 25 and latest_pdi < latest_ndi:
+    st.write("The ADX signal indicates a **strong bearish** trend. Consider selling.")
+else:
+    st.write("The ADX signal indicates a **neutral** trend. No clear action recommended.")
