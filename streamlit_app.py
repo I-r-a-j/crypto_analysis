@@ -144,7 +144,26 @@ def technical_analysis(df, analysis_type):
         fig.add_trace(go.Scatter(x=df.index, y=df['ADX'], mode='lines', name='ADX'))
         fig.update_layout(title='Average Directional Index (ADX)', xaxis_title='Date', yaxis_title='Value')
         return fig
-
+    elif analysis_type == 'Ichimoku Cloud':
+        # Calculation parameters
+        short_span = 9
+        medium_span = 26
+        long_span = 52
+        df['Tenkan-sen'] = (df['high'].rolling(window=short_span).max() + df['low'].rolling(window=short_span).min()) / 2
+        df['Kijun-sen'] = (df['high'].rolling(window=medium_span).max() + df['low'].rolling(window=medium_span).min()) / 2
+        df['Senkou Span A'] = ((df['Tenkan-sen'] + df['Kijun-sen']) / 2).shift(medium_span)
+        df['Senkou Span B'] = ((df['high'].rolling(window=long_span).max() + df['low'].rolling(window=long_span).min()) / 2).shift(medium_span)
+        df['Chikou Span'] = df['close'].shift(-medium_span)
+        
+        fig = go.Figure()
+        fig.add_trace(go.Scatter(x=df.index, y=df['close'], mode='lines', name='Close'))
+        fig.add_trace(go.Scatter(x=df.index, y=df['Tenkan-sen'], mode='lines', name='Tenkan-sen'))
+        fig.add_trace(go.Scatter(x=df.index, y=df['Kijun-sen'], mode='lines', name='Kijun-sen'))
+        fig.add_trace(go.Scatter(x=df.index, y=df['Senkou Span A'], mode='lines', name='Senkou Span A'))
+        fig.add_trace(go.Scatter(x=df.index, y=df['Senkou Span B'], mode='lines', name='Senkou Span B', fill='tonexty'))
+        fig.add_trace(go.Scatter(x=df.index, y=df['Chikou Span'], mode='lines', name='Chikou Span'))
+        fig.update_layout(title='Ichimoku Cloud', xaxis_title='Date', yaxis_title='Price')
+        return fig
 # Function to get tradingview recommendation
 def get_tradingview_recommendation(tv_symbol):
     handler = TA_Handler(
@@ -376,3 +395,32 @@ elif latest_adx > 25 and latest_pdi < latest_ndi:
     st.write("The ADX signal indicates a **strong bearish** trend. Consider selling.")
 else:
     st.write("The ADX signal indicates a **neutral** trend. No clear action recommended.")
+
+# Ichimoku Cloud Signal Recommendation
+st.subheader('Ichimoku Cloud Signal Recommendation')
+
+# Ensure Ichimoku Cloud is calculated before making a recommendation
+short_span = 9
+medium_span = 26
+long_span = 52
+df['Tenkan-sen'] = (df['high'].rolling(window=short_span).max() + df['low'].rolling(window=short_span).min()) / 2
+df['Kijun-sen'] = (df['high'].rolling(window=medium_span).max() + df['low'].rolling(window=medium_span).min()) / 2
+df['Senkou Span A'] = ((df['Tenkan-sen'] + df['Kijun-sen']) / 2).shift(medium_span)
+df['Senkou Span B'] = ((df['high'].rolling(window=long_span).max() + df['low'].rolling(window=long_span).min()) / 2).shift(medium_span)
+df['Chikou Span'] = df['close'].shift(-medium_span)
+
+# Calculate Ichimoku Cloud signals and provide recommendation
+latest_close = df['close'].iloc[-1]
+latest_tenkan_sen = df['Tenkan-sen'].iloc[-1]
+latest_kijun_sen = df['Kijun-sen'].iloc[-1]
+latest_senkou_span_a = df['Senkou Span A'].iloc[-1]
+latest_senkou_span_b = df['Senkou Span B'].iloc[-1]
+latest_chikou_span = df['Chikou Span'].iloc[-1]
+
+if latest_close > latest_senkou_span_a and latest_close > latest_senkou_span_b:
+    st.write("The Ichimoku Cloud signal indicates a **strong bullish** trend. Consider buying.")
+elif latest_close < latest_senkou_span_a and latest_close < latest_senkou_span_b:
+    st.write("The Ichimoku Cloud signal indicates a **strong bearish** trend. Consider selling.")
+else:
+    st.write("The Ichimoku Cloud signal indicates a **neutral** trend. No clear action recommended.")
+
