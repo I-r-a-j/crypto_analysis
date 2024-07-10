@@ -173,7 +173,7 @@ def technical_analysis(df, analysis_type):
         fig.update_layout(title='Engulfing Pattern', xaxis_title='Date', yaxis_title='Price')
         return fig
         
-     elif analysis_type == 'Fibonacci Retracement':
+    elif analysis_type == 'Fibonacci Retracement':
         # Find the highest high and lowest low in the dataset
         highest_high = df['high'].max()
         lowest_low = df['low'].min()
