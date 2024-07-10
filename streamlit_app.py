@@ -166,10 +166,10 @@ def technical_analysis(df, analysis_type):
         return fig
     elif analysis_type == 'Engulfing Pattern':
         for i in range(1, len(df)):
-        prev_open = df['open'].iloc[i - 1]
-        prev_close = df['close'].iloc[i - 1]
-        curr_open = df['open'].iloc[i]
-        curr_close = df['close'].iloc[i]
+            prev_open = df['open'].iloc[i - 1]
+            prev_close = df['close'].iloc[i - 1]
+            curr_open = df['open'].iloc[i]
+            curr_close = df['close'].iloc[i]
         
         if prev_close > prev_open and curr_close > curr_open and curr_open < prev_close and curr_close > prev_open:
             df['Engulfing'].iloc[i] = 'Bullish Engulfing'
