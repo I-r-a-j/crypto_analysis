@@ -305,5 +305,27 @@ elif latest_obv < previous_obv:
 else:
     st.write("The OBV signal indicates a **neutral** trend. No clear action recommended.")
 
+# EMA Signal Recommendation
+st.subheader('Exponential Moving Averages (EMA) Signal Recommendation')
+
+# Ensure EMAs are calculated before making a recommendation
+df['EMA20'] = df['close'].ewm(span=20, adjust=False).mean()
+df['EMA50'] = df['close'].ewm(span=50, adjust=False).mean()
+df['EMA100'] = df['close'].ewm(span=100, adjust=False).mean()
+df['EMA200'] = df['close'].ewm(span=200, adjust=False).mean()
+
+# Calculate EMA signals and provide recommendation
+latest_close = df['close'].iloc[-1]
+latest_ema20 = df['EMA20'].iloc[-1]
+latest_ema50 = df['EMA50'].iloc[-1]
+latest_ema100 = df['EMA100'].iloc[-1]
+latest_ema200 = df['EMA200'].iloc[-1]
+
+if latest_close > latest_ema20 > latest_ema50 > latest_ema100 > latest_ema200:
+    st.write("The EMA signal indicates a **strong bullish** trend. Consider buying.")
+elif latest_close < latest_ema20 < latest_ema50 < latest_ema100 < latest_ema200:
+    st.write("The EMA signal indicates a **strong bearish** trend. Consider selling.")
+else:
+    st.write("The EMA signal indicates a **neutral** trend. No clear action recommended.")
 
 
