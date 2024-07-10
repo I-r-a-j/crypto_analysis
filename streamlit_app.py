@@ -286,5 +286,24 @@ elif latest_close < latest_lower_band:
 else:
     st.write("The Bollinger Bands signal indicates the asset is **within normal range**. No clear action recommended.")
 
+# OBV Signal Recommendation
+st.subheader('On-Balance Volume (OBV) Signal Recommendation')
+
+# Ensure OBV is calculated before making a recommendation
+df['Price Change'] = df['close'].diff()
+df['Direction'] = df['Price Change'].apply(lambda x: 1 if x > 0 else (-1 if x < 0 else 0))
+df['OBV'] = (df['Direction'] * df['volume']).cumsum()
+
+# Calculate OBV and provide recommendation
+latest_obv = df['OBV'].iloc[-1]
+previous_obv = df['OBV'].iloc[-2]
+
+if latest_obv > previous_obv:
+    st.write("The OBV signal indicates a **bullish** trend. Consider buying.")
+elif latest_obv < previous_obv:
+    st.write("The OBV signal indicates a **bearish** trend. Consider selling.")
+else:
+    st.write("The OBV signal indicates a **neutral** trend. No clear action recommended.")
+
 
 
