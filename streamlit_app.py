@@ -4,7 +4,6 @@ import pandas as pd
 import plotly.graph_objects as go
 from datetime import datetime, timedelta
 from tradingview_ta import TA_Handler, Interval
-
 # Function to load data
 def load_data(symbols, start_date, end_date):
     dfs = {}
@@ -13,7 +12,6 @@ def load_data(symbols, start_date, end_date):
         df.columns = [col.lower().replace(' ', '_') for col in df.columns]
         dfs[symbol] = df
     return dfs
-
 # Function to plot candlestick chart
 def plot_candlestick(df, symbol):
     fig = go.Figure(data=[go.Candlestick(
@@ -30,7 +28,6 @@ def plot_candlestick(df, symbol):
         xaxis_rangeslider_visible=True
     )
     return fig
-
 # Function for technical analysis
 def technical_analysis(df, analysis_type):
     if (analysis_type == 'Moving Averages'):
@@ -144,6 +141,7 @@ def technical_analysis(df, analysis_type):
         fig.add_trace(go.Scatter(x=df.index, y=df['ADX'], mode='lines', name='ADX'))
         fig.update_layout(title='Average Directional Index (ADX)', xaxis_title='Date', yaxis_title='Value')
         return fig
+
     elif analysis_type == 'Ichimoku Cloud':
         # Calculation parameters
         short_span = 9
@@ -154,7 +152,7 @@ def technical_analysis(df, analysis_type):
         df['Senkou Span A'] = ((df['Tenkan-sen'] + df['Kijun-sen']) / 2).shift(medium_span)
         df['Senkou Span B'] = ((df['high'].rolling(window=long_span).max() + df['low'].rolling(window=long_span).min()) / 2).shift(medium_span)
         df['Chikou Span'] = df['close'].shift(-medium_span)
-        
+
         fig = go.Figure()
         fig.add_trace(go.Scatter(x=df.index, y=df['close'], mode='lines', name='Close'))
         fig.add_trace(go.Scatter(x=df.index, y=df['Tenkan-sen'], mode='lines', name='Tenkan-sen'))
@@ -165,56 +163,15 @@ def technical_analysis(df, analysis_type):
         fig.update_layout(title='Ichimoku Cloud', xaxis_title='Date', yaxis_title='Price')
         return fig
     elif analysis_type == 'Engulfing Pattern':
-        df['Engulfing'] = ''
-        for i in range(1, len(df)):
-            prev_open = df['open'].iloc[i - 1]
-            prev_close = df['close'].iloc[i - 1]
-            curr_open = df['open'].iloc[i]
-            curr_close = df['close'].iloc[i]
-
-            if prev_close > prev_open and curr_close > curr_open and curr_open < prev_close and curr_close > prev_open:
-                df['Engulfing'].iloc[i] = 'Bullish Engulfing'
-            elif prev_open > prev_close and curr_open > curr_close and curr_open > prev_close and curr_close < prev_open:
-                df['Engulfing'].iloc[i] = 'Bearish Engulfing'
-        
-        fig = go.Figure(data=[go.Candlestick(
-            x=df.index,
-            open=df['open'],
-            high=df['high'],
-            low=df['low'],
-            close=df['close'],
-            name='Candlestick'
-        )])
-
-        # Highlight Bullish Engulfing
-        bullish_engulfing = df[df['Engulfing'] == 'Bullish Engulfing']
-        fig.add_trace(go.Scatter(
-            x=bullish_engulfing.index, 
-            y=bullish_engulfing['close'], 
-            mode='markers', 
-            marker=dict(symbol='triangle-up', color='green', size=10),
-            name='Bullish Engulfing'
-        ))
-
-        # Highlight Bearish Engulfing
-        bearish_engulfing = df[df['Engulfing'] == 'Bearish Engulfing']
-        fig.add_trace(go.Scatter(
-            x=bearish_engulfing.index, 
-            y=bearish_engulfing['close'], 
-            mode='markers', 
-            marker=dict(symbol='triangle-down', color='red', size=10),
-            name='Bearish Engulfing'
-        ))
-
-        fig.update_layout(
-            title='Engulfing Pattern',
-            xaxis_title='Date',
-            yaxis_title='Price',
-            xaxis_rangeslider_visible=True
-        )
+        df['Bullish Engulfing'] = (df['open'].shift(1) > df['close'].shift(1)) & (df['close'] > df['open'].shift(1)) & (df['open'] < df['close'].shift(1))
+        df['Bearish Engulfing'] = (df['open'].shift(1) < df['close'].shift(1)) & (df['close'] < df['open'].shift(1)) & (df['open'] > df['close'].shift(1))
+    
+        fig = go.Figure()
+        fig.add_trace(go.Candlestick(x=df.index, open=df['open'], high=df['high'], low=df['low'], close=df['close'], name='Price'))
+        fig.add_trace(go.Scatter(x=df[df['Bullish Engulfing']].index, y=df[df['Bullish Engulfing']]['low'], mode='markers', marker=dict(symbol='triangle-up', size=10, color='green'), name='Bullish Engulfing'))
+        fig.add_trace(go.Scatter(x=df[df['Bearish Engulfing']].index, y=df[df['Bearish Engulfing']]['high'], mode='markers', marker=dict(symbol='triangle-down', size=10, color='red'), name='Bearish Engulfing'))
+        fig.update_layout(title='Engulfing Pattern', xaxis_title='Date', yaxis_title='Price')
         return fig
-
-
 # Function to get tradingview recommendation
 def get_tradingview_recommendation(tv_symbol):
     handler = TA_Handler(
@@ -224,11 +181,9 @@ def get_tradingview_recommendation(tv_symbol):
         interval=Interval.INTERVAL_1_DAY
     )
     return handler.get_analysis().summary
-
 # Streamlit app layout
 st.title('Cryptocurrency Analysis Dashboard')
 st.sidebar.title('Options')
-
 # Define the cryptocurrency symbols
 symbols = {
     'Bitcoin (BTC)': 'BTC-USD',
@@ -236,7 +191,6 @@ symbols = {
     'Litecoin (LTC)': 'LTC-USD',
     'Dogecoin (DOGE)': 'DOGE-USD'
 }
-
 # Create a dictionary to map tradingview symbols
 tv_symbols = {
     'BTC-USD': 'BTCUSDT',
@@ -244,39 +198,31 @@ tv_symbols = {
     'LTC-USD': 'LTCUSDT',
     'DOGE-USD': 'DOGEUSDT'
 }
-
 # Sidebar selection for cryptocurrency
 selected_crypto = st.sidebar.selectbox('Select Cryptocurrency', list(symbols.keys()))
 selected_symbol = symbols[selected_crypto]
 tv_symbol = tv_symbols[selected_symbol]
-
 # Sidebar date selection
 today = datetime.today()
 one_year_ago = today - timedelta(days=365)
 start_date = st.sidebar.date_input('Start Date', one_year_ago)
 end_date = st.sidebar.date_input('End Date', today)
-
 # Load data
 dfs = load_data(symbols.values(), start_date, end_date)
-
 # Plot candlestick chart
 st.plotly_chart(plot_candlestick(dfs[selected_symbol], selected_crypto))
-
 # Sidebar selection for technical analysis
 analysis_type = st.sidebar.selectbox('Select Technical Analysis', [
     'Moving Averages', 'RSI', 'MACD', 'Bollinger Bands',
     'On-Balance Volume (OBV)', 'Exponential Moving Averages (EMA)',
-    'Stochastic Oscillator', 'Average Directional Index (ADX)', 'Ichimoku Cloud', 'Engulfing Pattern'
+    'Stochastic Oscillator', 'Average Directional Index (ADX)', 'Ichimoku Cloud' ,'Engulfing Pattern'
 ])
-
 # Perform technical analysis and plot the result
 st.plotly_chart(technical_analysis(dfs[selected_symbol], analysis_type))
-
 # TradingView technical analysis recommendations
 st.subheader('TradingView Recommendations')
 recommendations = get_tradingview_recommendation(tv_symbol)
 st.write(recommendations)
-
 # Moving Average Signal Recommendation
 st.subheader('Moving Average Signal Recommendation')
 latest_data = dfs[selected_symbol].iloc[-1]
@@ -286,10 +232,8 @@ elif latest_data['MA20'] < latest_data['MA50'] and latest_data['MA50'] < latest_
     st.write("The moving average signal indicates a **strong sell** recommendation.")
 else:
     st.write("The moving average signal indicates a **hold** recommendation.")
-
 # RSI Signal Recommendation
 st.subheader('RSI Signal Recommendation')
-
 # Ensure RSI is calculated before making a recommendation
 df = dfs[selected_symbol]
 df['Price Change'] = df['close'].diff()
@@ -300,7 +244,6 @@ df['Avg Gain'] = df['Gain'].rolling(window=window, min_periods=1).mean()
 df['Avg Loss'] = df['Loss'].rolling(window=window, min_periods=1).mean()
 df['RS'] = df['Avg Gain'] / df['Avg Loss']
 df['RSI'] = 100 - (100 / (1 + df['RS']))
-
 # Calculate RSI and provide recommendation
 latest_rsi = df['RSI'].iloc[-1]
 if latest_rsi > 70:
@@ -309,30 +252,24 @@ elif latest_rsi < 30:
     st.write("The RSI signal indicates the asset is **oversold**. Consider buying.")
 else:
     st.write("The RSI signal indicates the asset is **neutral**. No clear action recommended.")
-
 # MACD Signal Recommendation
 st.subheader('MACD Signal Recommendation')
-
 # Ensure MACD is calculated before making a recommendation
 df['EMA12'] = df['close'].ewm(span=12, adjust=False).mean()
 df['EMA26'] = df['close'].ewm(span=26, adjust=False).mean()
 df['MACD'] = df['EMA12'] - df['EMA26']
 df['Signal Line'] = df['MACD'].ewm(span=9, adjust=False).mean()
-
 # Calculate MACD and provide recommendation
 latest_macd = df['MACD'].iloc[-1]
 latest_signal = df['Signal Line'].iloc[-1]
-
 if latest_macd > latest_signal:
     st.write("The MACD signal indicates a **bullish** trend. Consider buying.")
 elif latest_macd < latest_signal:
     st.write("The MACD signal indicates a **bearish** trend. Consider selling.")
 else:
     st.write("The MACD signal indicates a **neutral** trend. No clear action recommended.")
-
 # Bollinger Bands Signal Recommendation
 st.subheader('Bollinger Bands Signal Recommendation')
-
 # Ensure Bollinger Bands are calculated before making a recommendation
 window = 20
 num_std = 2
@@ -340,64 +277,52 @@ df['MA'] = df['close'].rolling(window=window).mean()
 df['STD'] = df['close'].rolling(window=window).std()
 df['Upper Band'] = df['MA'] + (num_std * df['STD'])
 df['Lower Band'] = df['MA'] - (num_std * df['STD'])
-
 # Calculate Bollinger Bands and provide recommendation
 latest_close = df['close'].iloc[-1]
 latest_upper_band = df['Upper Band'].iloc[-1]
 latest_lower_band = df['Lower Band'].iloc[-1]
-
 if latest_close > latest_upper_band:
     st.write("The Bollinger Bands signal indicates the asset is **overbought**. Consider selling.")
 elif latest_close < latest_lower_band:
     st.write("The Bollinger Bands signal indicates the asset is **oversold**. Consider buying.")
 else:
     st.write("The Bollinger Bands signal indicates the asset is **within normal range**. No clear action recommended.")
-
 # OBV Signal Recommendation
 st.subheader('On-Balance Volume (OBV) Signal Recommendation')
-
 # Ensure OBV is calculated before making a recommendation
 df['Price Change'] = df['close'].diff()
 df['Direction'] = df['Price Change'].apply(lambda x: 1 if x > 0 else (-1 if x < 0 else 0))
 df['OBV'] = (df['Direction'] * df['volume']).cumsum()
-
 # Calculate OBV and provide recommendation
 latest_obv = df['OBV'].iloc[-1]
 previous_obv = df['OBV'].iloc[-2]
-
 if latest_obv > previous_obv:
     st.write("The OBV signal indicates a **bullish** trend. Consider buying.")
 elif latest_obv < previous_obv:
     st.write("The OBV signal indicates a **bearish** trend. Consider selling.")
 else:
     st.write("The OBV signal indicates a **neutral** trend. No clear action recommended.")
-
 # EMA Signal Recommendation
 st.subheader('Exponential Moving Averages (EMA) Signal Recommendation')
-
 # Ensure EMAs are calculated before making a recommendation
 df['EMA20'] = df['close'].ewm(span=20, adjust=False).mean()
 df['EMA50'] = df['close'].ewm(span=50, adjust=False).mean()
 df['EMA100'] = df['close'].ewm(span=100, adjust=False).mean()
 df['EMA200'] = df['close'].ewm(span=200, adjust=False).mean()
-
 # Calculate EMA signals and provide recommendation
 latest_close = df['close'].iloc[-1]
 latest_ema20 = df['EMA20'].iloc[-1]
 latest_ema50 = df['EMA50'].iloc[-1]
 latest_ema100 = df['EMA100'].iloc[-1]
 latest_ema200 = df['EMA200'].iloc[-1]
-
 if latest_close > latest_ema20 > latest_ema50 > latest_ema100 > latest_ema200:
     st.write("The EMA signal indicates a **strong bullish** trend. Consider buying.")
 elif latest_close < latest_ema20 < latest_ema50 < latest_ema100 < latest_ema200:
     st.write("The EMA signal indicates a **strong bearish** trend. Consider selling.")
 else:
     st.write("The EMA signal indicates a **neutral** trend. No clear action recommended.")
-
 # Stochastic Oscillator Signal Recommendation
 st.subheader('Stochastic Oscillator Signal Recommendation')
-
 # Ensure Stochastic Oscillator is calculated before making a recommendation
 window = 14
 smooth_window = 3
@@ -405,21 +330,17 @@ df['Lowest Low'] = df['low'].rolling(window=window).min()
 df['Highest High'] = df['high'].rolling(window=window).max()
 df['%K'] = ((df['close'] - df['Lowest Low']) / (df['Highest High'] - df['Lowest Low'])) * 100
 df['%D'] = df['%K'].rolling(window=smooth_window).mean()
-
 # Calculate Stochastic Oscillator signals and provide recommendation
 latest_k = df['%K'].iloc[-1]
 latest_d = df['%D'].iloc[-1]
-
 if latest_k > 80 and latest_d > 80:
     st.write("The Stochastic Oscillator indicates an **overbought** condition. Consider selling.")
 elif latest_k < 20 and latest_d < 20:
     st.write("The Stochastic Oscillator indicates an **oversold** condition. Consider buying.")
 else:
     st.write("The Stochastic Oscillator indicates a **neutral** condition. No clear action recommended.")
-
 # ADX Signal Recommendation
 st.subheader('Average Directional Index (ADX) Signal Recommendation')
-
 # Ensure ADX is calculated before making a recommendation
 window = 14
 df['H-L'] = df['high'] - df['low']
@@ -434,12 +355,10 @@ df['+DI'] = 100 * (df['+DM'].ewm(alpha=1/window).mean() / df['TR'].ewm(alpha=1/w
 df['-DI'] = 100 * (df['-DM'].ewm(alpha=1/window).mean() / df['TR'].ewm(alpha=1/window).mean())
 df['DX'] = 100 * abs(df['+DI'] - df['-DI']) / (df['+DI'] + df['-DI'])
 df['ADX'] = df['DX'].ewm(alpha=1/window).mean()
-
 # Calculate ADX signals and provide recommendation
 latest_adx = df['ADX'].iloc[-1]
 latest_pdi = df['+DI'].iloc[-1]
 latest_ndi = df['-DI'].iloc[-1]
-
 if latest_adx > 25 and latest_pdi > latest_ndi:
     st.write("The ADX signal indicates a **strong bullish** trend. Consider buying.")
 elif latest_adx > 25 and latest_pdi < latest_ndi:
@@ -475,13 +394,23 @@ elif latest_close < latest_senkou_span_a and latest_close < latest_senkou_span_b
 else:
     st.write("The Ichimoku Cloud signal indicates a **neutral** trend. No clear action recommended.")
 
-# Engulfing pattern recommendation
-latest_engulfing_pattern = df['Engulfing'].iloc[-1]
-
+# Engulfing Pattern Signal Recommendation
 st.subheader('Engulfing Pattern Signal Recommendation')
-if latest_engulfing_pattern == 'Bullish Engulfing':
-    st.write("The latest candlestick pattern indicates a **Bullish Engulfing**. Consider buying.")
-elif latest_engulfing_pattern == 'Bearish Engulfing':
-    st.write("The latest candlestick pattern indicates a **Bearish Engulfing**. Consider selling.")
+
+# Ensure Engulfing Pattern is calculated before making a recommendation
+df['Bullish Engulfing'] = (df['open'].shift(1) > df['close'].shift(1)) & (df['close'] > df['open'].shift(1)) & (df['open'] < df['close'].shift(1))
+df['Bearish Engulfing'] = (df['open'].shift(1) < df['close'].shift(1)) & (df['close'] < df['open'].shift(1)) & (df['open'] > df['close'].shift(1))
+
+# Check for recent engulfing patterns
+last_5_days = df.tail(5)
+bullish_engulfing = last_5_days['Bullish Engulfing'].any()
+bearish_engulfing = last_5_days['Bearish Engulfing'].any()
+
+if bullish_engulfing and not bearish_engulfing:
+    st.write("A recent **Bullish Engulfing** pattern has been detected. This suggests a potential upward trend. Consider buying.")
+elif bearish_engulfing and not bullish_engulfing:
+    st.write("A recent **Bearish Engulfing** pattern has been detected. This suggests a potential downward trend. Consider selling.")
+elif bullish_engulfing and bearish_engulfing:
+    st.write("Both Bullish and Bearish Engulfing patterns have been detected recently. The market may be volatile. Exercise caution.")
 else:
-    st.write("No Engulfing pattern detected in the latest data. No clear action recommended.")
+    st.write("No clear Engulfing patterns have been detected recently. The trend is unclear based on this indicator alone.")
