@@ -263,4 +263,28 @@ elif latest_macd < latest_signal:
 else:
     st.write("The MACD signal indicates a **neutral** trend. No clear action recommended.")
 
+# Bollinger Bands Signal Recommendation
+st.subheader('Bollinger Bands Signal Recommendation')
+
+# Ensure Bollinger Bands are calculated before making a recommendation
+window = 20
+num_std = 2
+df['MA'] = df['close'].rolling(window=window).mean()
+df['STD'] = df['close'].rolling(window=window).std()
+df['Upper Band'] = df['MA'] + (num_std * df['STD'])
+df['Lower Band'] = df['MA'] - (num_std * df['STD'])
+
+# Calculate Bollinger Bands and provide recommendation
+latest_close = df['close'].iloc[-1]
+latest_upper_band = df['Upper Band'].iloc[-1]
+latest_lower_band = df['Lower Band'].iloc[-1]
+
+if latest_close > latest_upper_band:
+    st.write("The Bollinger Bands signal indicates the asset is **overbought**. Consider selling.")
+elif latest_close < latest_lower_band:
+    st.write("The Bollinger Bands signal indicates the asset is **oversold**. Consider buying.")
+else:
+    st.write("The Bollinger Bands signal indicates the asset is **within normal range**. No clear action recommended.")
+
+
 
