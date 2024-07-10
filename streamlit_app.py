@@ -164,6 +164,19 @@ def technical_analysis(df, analysis_type):
         fig.add_trace(go.Scatter(x=df.index, y=df['Chikou Span'], mode='lines', name='Chikou Span'))
         fig.update_layout(title='Ichimoku Cloud', xaxis_title='Date', yaxis_title='Price')
         return fig
+    elif analysis_type == 'Engulfing Pattern':
+        for i in range(1, len(df)):
+        prev_open = df['open'].iloc[i - 1]
+        prev_close = df['close'].iloc[i - 1]
+        curr_open = df['open'].iloc[i]
+        curr_close = df['close'].iloc[i]
+        
+        if prev_close > prev_open and curr_close > curr_open and curr_open < prev_close and curr_close > prev_open:
+            df['Engulfing'].iloc[i] = 'Bullish Engulfing'
+        elif prev_open > prev_close and curr_open > curr_close and curr_open > prev_close and curr_close < prev_open:
+            df['Engulfing'].iloc[i] = 'Bearish Engulfing'
+    return df
+
 # Function to get tradingview recommendation
 def get_tradingview_recommendation(tv_symbol):
     handler = TA_Handler(
@@ -215,7 +228,7 @@ st.plotly_chart(plot_candlestick(dfs[selected_symbol], selected_crypto))
 analysis_type = st.sidebar.selectbox('Select Technical Analysis', [
     'Moving Averages', 'RSI', 'MACD', 'Bollinger Bands',
     'On-Balance Volume (OBV)', 'Exponential Moving Averages (EMA)',
-    'Stochastic Oscillator', 'Average Directional Index (ADX)'
+    'Stochastic Oscillator', 'Average Directional Index (ADX)', 'Ichimoku Cloud'
 ])
 
 # Perform technical analysis and plot the result
@@ -424,3 +437,18 @@ elif latest_close < latest_senkou_span_a and latest_close < latest_senkou_span_b
 else:
     st.write("The Ichimoku Cloud signal indicates a **neutral** trend. No clear action recommended.")
 
+# Engulfing Pattern Signal Recommendation
+st.subheader('Engulfing Pattern Signal Recommendation')
+
+# Detect Engulfing patterns
+df = detect_engulfing_pattern(df)
+
+# Provide recommendation based on the latest detected Engulfing pattern
+latest_engulfing_pattern = df['Engulfing'].iloc[-1]
+
+if latest_engulfing_pattern == 'Bullish Engulfing':
+    st.write("The latest candlestick pattern indicates a **Bullish Engulfing**. Consider buying.")
+elif latest_engulfing_pattern == 'Bearish Engulfing':
+    st.write("The latest candlestick pattern indicates a **Bearish Engulfing**. Consider selling.")
+else:
+    st.write("No Engulfing pattern detected in the latest data. No clear action recommended.")
