@@ -243,3 +243,24 @@ elif latest_rsi < 30:
 else:
     st.write("The RSI signal indicates the asset is **neutral**. No clear action recommended.")
 
+# MACD Signal Recommendation
+st.subheader('MACD Signal Recommendation')
+
+# Ensure MACD is calculated before making a recommendation
+df['EMA12'] = df['close'].ewm(span=12, adjust=False).mean()
+df['EMA26'] = df['close'].ewm(span=26, adjust=False).mean()
+df['MACD'] = df['EMA12'] - df['EMA26']
+df['Signal Line'] = df['MACD'].ewm(span=9, adjust=False).mean()
+
+# Calculate MACD and provide recommendation
+latest_macd = df['MACD'].iloc[-1]
+latest_signal = df['Signal Line'].iloc[-1]
+
+if latest_macd > latest_signal:
+    st.write("The MACD signal indicates a **bullish** trend. Consider buying.")
+elif latest_macd < latest_signal:
+    st.write("The MACD signal indicates a **bearish** trend. Consider selling.")
+else:
+    st.write("The MACD signal indicates a **neutral** trend. No clear action recommended.")
+
+
