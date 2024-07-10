@@ -464,4 +464,3 @@ elif latest_close < fib_levels[3]:  # Below 0.5 level
 else:
     st.write("The price is at the 0.5 Fibonacci level, which is often considered a pivotal point. The trend could go either way from here. Consider waiting for a clearer signal.")
 
-st.write("Remember that Fibonacci retracement levels are best used in conjunction with other technical indicators for more reliable trading signals.")
