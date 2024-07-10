@@ -266,7 +266,7 @@ st.plotly_chart(plot_candlestick(dfs[selected_symbol], selected_crypto))
 analysis_type = st.sidebar.selectbox('Select Technical Analysis', [
     'Moving Averages', 'RSI', 'MACD', 'Bollinger Bands',
     'On-Balance Volume (OBV)', 'Exponential Moving Averages (EMA)',
-    'Stochastic Oscillator', 'Average Directional Index (ADX)', 'Ichimoku Cloud'
+    'Stochastic Oscillator', 'Average Directional Index (ADX)', 'Ichimoku Cloud', 'Engulfing Pattern'
 ])
 
 # Perform technical analysis and plot the result
