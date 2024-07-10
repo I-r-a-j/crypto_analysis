@@ -165,17 +165,55 @@ def technical_analysis(df, analysis_type):
         fig.update_layout(title='Ichimoku Cloud', xaxis_title='Date', yaxis_title='Price')
         return fig
     elif analysis_type == 'Engulfing Pattern':
+        df['Engulfing'] = ''
         for i in range(1, len(df)):
             prev_open = df['open'].iloc[i - 1]
             prev_close = df['close'].iloc[i - 1]
             curr_open = df['open'].iloc[i]
             curr_close = df['close'].iloc[i]
+
+            if prev_close > prev_open and curr_close > curr_open and curr_open < prev_close and curr_close > prev_open:
+                df['Engulfing'].iloc[i] = 'Bullish Engulfing'
+            elif prev_open > prev_close and curr_open > curr_close and curr_open > prev_close and curr_close < prev_open:
+                df['Engulfing'].iloc[i] = 'Bearish Engulfing'
         
-        if prev_close > prev_open and curr_close > curr_open and curr_open < prev_close and curr_close > prev_open:
-            df['Engulfing'].iloc[i] = 'Bullish Engulfing'
-        elif prev_open > prev_close and curr_open > curr_close and curr_open > prev_close and curr_close < prev_open:
-            df['Engulfing'].iloc[i] = 'Bearish Engulfing'
-    return df
+        fig = go.Figure(data=[go.Candlestick(
+            x=df.index,
+            open=df['open'],
+            high=df['high'],
+            low=df['low'],
+            close=df['close'],
+            name='Candlestick'
+        )])
+
+        # Highlight Bullish Engulfing
+        bullish_engulfing = df[df['Engulfing'] == 'Bullish Engulfing']
+        fig.add_trace(go.Scatter(
+            x=bullish_engulfing.index, 
+            y=bullish_engulfing['close'], 
+            mode='markers', 
+            marker=dict(symbol='triangle-up', color='green', size=10),
+            name='Bullish Engulfing'
+        ))
+
+        # Highlight Bearish Engulfing
+        bearish_engulfing = df[df['Engulfing'] == 'Bearish Engulfing']
+        fig.add_trace(go.Scatter(
+            x=bearish_engulfing.index, 
+            y=bearish_engulfing['close'], 
+            mode='markers', 
+            marker=dict(symbol='triangle-down', color='red', size=10),
+            name='Bearish Engulfing'
+        ))
+
+        fig.update_layout(
+            title='Engulfing Pattern',
+            xaxis_title='Date',
+            yaxis_title='Price',
+            xaxis_rangeslider_visible=True
+        )
+        return fig
+
 
 # Function to get tradingview recommendation
 def get_tradingview_recommendation(tv_symbol):
