@@ -242,8 +242,11 @@ st.plotly_chart(technical_analysis(dfs[selected_symbol], analysis_type))
 # TradingView technical analysis recommendations
 st.subheader('TradingView Recommendations')
 recommendations = get_tradingview_recommendation(tv_symbol)
-st.write(recommendations)
+# Display TradingView recommendations without curly braces
+st.write('TradingView Recommendations')
+st.write(f"Recommendation: {recommendations['RECOMMENDATION']}")
 st.write(f"Buy: {recommendations['BUY']}, Sell: {recommendations['SELL']}, Neutral: {recommendations['NEUTRAL']}")
+
 # Moving Average Signal Recommendation
 st.subheader('Moving Average Signal Recommendation')
 latest_data = dfs[selected_symbol].iloc[-1]
