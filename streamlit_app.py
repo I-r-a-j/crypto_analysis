@@ -243,7 +243,7 @@ st.plotly_chart(technical_analysis(dfs[selected_symbol], analysis_type))
 st.subheader('TradingView Recommendations')
 recommendations = get_tradingview_recommendation(tv_symbol)
 # Display TradingView recommendations without curly braces
-st.write('TradingView Recommendations')
+
 st.write(f"Recommendation: {recommendations['RECOMMENDATION']}")
 st.write(f"Buy: {recommendations['BUY']}, Sell: {recommendations['SELL']}, Neutral: {recommendations['NEUTRAL']}")
 
