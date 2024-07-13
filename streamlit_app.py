@@ -198,10 +198,6 @@ end_date = st.sidebar.date_input('End Date', today)
 # Load data
 data = load_data(symbols.values(), start_date, end_date)
 
-# Display data and plots for the selected stock
-st.header(f'{selected_stock} ({selected_symbol}) Data')
-st.write(data[selected_symbol].tail())
-
 st.header(f'{selected_stock} ({selected_symbol}) Candlestick Chart')
 fig = plot_candlestick(data[selected_symbol], selected_symbol)
 st.plotly_chart(fig)
