@@ -178,35 +178,42 @@ def technical_analysis(df, analysis_type):
 st.title('Stock Analysis and Recommendation Tool')
 
 # Define the ticker symbols you want to analyze
-symbols = ['AAPL', 'GOOGL', 'MSFT', 'AMZN']
+symbols = {
+    'Apple': 'AAPL',
+    'Google': 'GOOGL',
+    'Microsoft': 'MSFT',
+    'Amazon': 'AMZN'
+}
 
-# Create a multi-select box for the user to select symbols
-selected_symbols = st.multiselect('Select Stock Symbols', symbols, default=['AAPL'])
+# Sidebar selection for stock symbols
+selected_stock = st.sidebar.selectbox('Select Stock', list(symbols.keys()))
+selected_symbol = symbols[selected_stock]
 
-# Define the date range
-end_date = datetime.today().date()
-start_date = end_date - timedelta(days=365 * 3)  # 3 years of data
+# Sidebar date selection
+today = datetime.today()
+one_year_ago = today - timedelta(days=365)
+start_date = st.sidebar.date_input('Start Date', one_year_ago)
+end_date = st.sidebar.date_input('End Date', today)
 
 # Load data
-data = load_data(selected_symbols, start_date, end_date)
+data = load_data(symbols.values(), start_date, end_date)
 
-# Display data and plots for each selected symbol
-for symbol in selected_symbols:
-    st.header(f'{symbol} Data')
-    st.write(data[symbol].tail())
+# Display data and plots for the selected stock
+st.header(f'{selected_stock} ({selected_symbol}) Data')
+st.write(data[selected_symbol].tail())
 
-    st.header(f'{symbol} Candlestick Chart')
-    fig = plot_candlestick(data[symbol], symbol)
-    st.plotly_chart(fig)
+st.header(f'{selected_stock} ({selected_symbol}) Candlestick Chart')
+fig = plot_candlestick(data[selected_symbol], selected_symbol)
+st.plotly_chart(fig)
 
-    # Create radio buttons for technical analysis options
-    analysis_type = st.radio(
-        'Select Technical Analysis Type',
-        ('Moving Averages', 'RSI', 'MACD', 'Bollinger Bands', 'On-Balance Volume (OBV)', 'Exponential Moving Averages (EMA)')
-    )
+# Create radio buttons for technical analysis options
+analysis_type = st.sidebar.radio(
+    'Select Technical Analysis Type',
+    ('Moving Averages', 'RSI', 'MACD', 'Bollinger Bands', 'On-Balance Volume (OBV)', 'Exponential Moving Averages (EMA)')
+)
 
-    # Perform technical analysis and generate recommendation
-    st.header(f'{symbol} {analysis_type} Analysis')
-    fig, recommendation = technical_analysis(data[symbol], analysis_type)
-    st.plotly_chart(fig)
-    st.write(recommendation)
+# Perform technical analysis and generate recommendation
+st.header(f'{selected_stock} ({selected_symbol}) {analysis_type} Analysis')
+fig, recommendation = technical_analysis(data[selected_symbol], analysis_type)
+st.plotly_chart(fig)
+st.write(recommendation)
