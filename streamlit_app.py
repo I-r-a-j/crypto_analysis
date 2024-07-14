@@ -254,8 +254,6 @@ def perform_technical_analysis(df, analysis_type):
 
     return fig, recommendation
 
-    return fig, recommendation
-
 # Streamlit app
 st.title("Cryptocurrency Analysis Dashboard")
 
