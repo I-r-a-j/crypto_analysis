@@ -70,51 +70,46 @@ def perform_technical_analysis(df, analysis_type):
             recommendation = "The RSI signal indicates the asset is **neutral**. No clear action recommended."
 
     elif analysis_type == 'MACD':
-        df['EMA12'] = df['close'].ewm(span=12, adjust=False).mean()
-        df['EMA26'] = df['close'].ewm(span=26, adjust=False).mean()
+        df['EMA12'] = df['Close'].ewm(span=12, adjust=False).mean()
+        df['EMA26'] = df['Close'].ewm(span=26, adjust=False).mean()
         df['MACD'] = df['EMA12'] - df['EMA26']
         df['Signal Line'] = df['MACD'].ewm(span=9, adjust=False).mean()
 
         fig = go.Figure()
         fig.add_trace(go.Scatter(x=df.index, y=df['MACD'], mode='lines', name='MACD'))
         fig.add_trace(go.Scatter(x=df.index, y=df['Signal Line'], mode='lines', name='Signal Line'))
-        fig.update_layout(title='Moving Average Convergence Divergence (MACD)', xaxis_title='Date', yaxis_title='MACD')
+        fig.update_layout(title='MACD', xaxis_title='Date', yaxis_title='Value')
 
-        # Generate recommendation
         latest_macd = df['MACD'].iloc[-1]
         latest_signal = df['Signal Line'].iloc[-1]
         if latest_macd > latest_signal:
-            recommendation = "The MACD signal indicates a **bullish** trend. Consider buying."
+            recommendation = "The MACD signal indicates a **buy** recommendation."
         elif latest_macd < latest_signal:
-            recommendation = "The MACD signal indicates a **bearish** trend. Consider selling."
+            recommendation = "The MACD signal indicates a **sell** recommendation."
         else:
-            recommendation = "The MACD signal indicates a **neutral** trend. No clear action recommended."
+            recommendation = "The MACD signal indicates a **hold** recommendation."
 
     elif analysis_type == 'Bollinger Bands':
-        window = 20
-        num_std = 2
-        df['MA'] = df['close'].rolling(window=window).mean()
-        df['STD'] = df['close'].rolling(window=window).std()
-        df['Upper Band'] = df['MA'] + (num_std * df['STD'])
-        df['Lower Band'] = df['MA'] - (num_std * df['STD'])
+        df['MA'] = df['Close'].rolling(window=20).mean()
+        df['STD'] = df['Close'].rolling(window=20).std()
+        df['Upper Band'] = df['MA'] + (2 * df['STD'])
+        df['Lower Band'] = df['MA'] - (2 * df['STD'])
 
         fig = go.Figure()
-        fig.add_trace(go.Scatter(x=df.index, y=df['close'], mode='lines', name='Close'))
-        fig.add_trace(go.Scatter(x=df.index, y=df['MA'], mode='lines', name='Moving Average'))
-        fig.add_trace(go.Scatter(x=df.index, y=df['Upper Band'], mode='lines', name='Upper Bollinger Band'))
-        fig.add_trace(go.Scatter(x=df.index, y=df['Lower Band'], mode='lines', name='Lower Bollinger Band'))
+        fig.add_trace(go.Scatter(x=df.index, y=df['Close'], mode='lines', name='Close'))
+        fig.add_trace(go.Scatter(x=df.index, y=df['Upper Band'], mode='lines', name='Upper Band'))
+        fig.add_trace(go.Scatter(x=df.index, y=df['Lower Band'], mode='lines', name='Lower Band'))
         fig.update_layout(title='Bollinger Bands', xaxis_title='Date', yaxis_title='Price')
 
-        # Generate recommendation
-        latest_close = df['close'].iloc[-1]
-        latest_upper_band = df['Upper Band'].iloc[-1]
-        latest_lower_band = df['Lower Band'].iloc[-1]
-        if latest_close > latest_upper_band:
-            recommendation = "The Bollinger Bands signal indicates the asset is **overbought**. Consider selling."
-        elif latest_close < latest_lower_band:
-            recommendation = "The Bollinger Bands signal indicates the asset is **oversold**. Consider buying."
+        latest_close = df['Close'].iloc[-1]
+        latest_upper = df['Upper Band'].iloc[-1]
+        latest_lower = df['Lower Band'].iloc[-1]
+        if latest_close > latest_upper:
+            recommendation = "The Bollinger Bands signal indicates the asset is **overbought**."
+        elif latest_close < latest_lower:
+            recommendation = "The Bollinger Bands signal indicates the asset is **oversold**."
         else:
-            recommendation = "The Bollinger Bands signal indicates the asset is **within normal range**. No clear action recommended."
+            recommendation = "The Bollinger Bands signal indicates the asset is **neutral**."
 
     elif analysis_type == 'On-Balance Volume (OBV)':
         df['Price Change'] = df['close'].diff()
