@@ -111,40 +111,29 @@ def perform_technical_analysis(df, analysis_type):
         else:
             recommendation = "The Bollinger Bands signal indicates the asset is **neutral**."
 
-    elif analysis_type == 'On-Balance Volume (OBV)':
-        df['Price Change'] = df['close'].diff()
-        df['Direction'] = df['Price Change'].apply(lambda x: 1 if x > 0 else (-1 if x < 0 else 0))
-        df['OBV'] = (df['Direction'] * df['volume']).cumsum()
+     elif analysis_type == 'On-Balance Volume (OBV)':
+        df['OBV'] = (np.sign(df['Close'].diff()) * df['Volume']).fillna(0).cumsum()
 
         fig = go.Figure()
         fig.add_trace(go.Scatter(x=df.index, y=df['OBV'], mode='lines', name='OBV'))
         fig.update_layout(title='On-Balance Volume (OBV)', xaxis_title='Date', yaxis_title='OBV')
 
-        # Generate recommendation
-        latest_obv = df['OBV'].iloc[-1]
-        previous_obv = df['OBV'].iloc[-2]
-        if latest_obv > previous_obv:
-            recommendation = "The OBV signal indicates a **bullish** trend. Consider buying."
-        elif latest_obv < previous_obv:
-            recommendation = "The OBV signal indicates a **bearish** trend. Consider selling."
-        else:
-            recommendation = "The OBV signal indicates a **neutral** trend. No clear action recommended."
+        recommendation = "The OBV is a cumulative indicator and provides insights based on volume flow. Interpret in context."
 
     elif analysis_type == 'Exponential Moving Averages (EMA)':
-        df['EMA20'] = df['close'].ewm(span=20, adjust=False).mean()
-        df['EMA50'] = df['close'].ewm(span=50, adjust=False).mean()
-        df['EMA100'] = df['close'].ewm(span=100, adjust=False).mean()
-        df['EMA200'] = df['close'].ewm(span=200, adjust=False).mean()
+        df['EMA20'] = df['Close'].ewm(span=20, adjust=False).mean()
+        df['EMA50'] = df['Close'].ewm(span=50, adjust=False).mean()
+        df['EMA100'] = df['Close'].ewm(span=100, adjust=False).mean()
+        df['EMA200'] = df['Close'].ewm(span=200, adjust=False).mean()
 
         fig = go.Figure()
-        fig.add_trace(go.Scatter(x=df.index, y=df['close'], mode='lines', name='Actual Data'))
+        fig.add_trace(go.Scatter(x=df.index, y=df['Close'], mode='lines', name='Actual Data'))
         fig.add_trace(go.Scatter(x=df.index, y=df['EMA20'], mode='lines', name='EMA20'))
         fig.add_trace(go.Scatter(x=df.index, y=df['EMA50'], mode='lines', name='EMA50'))
         fig.add_trace(go.Scatter(x=df.index, y=df['EMA100'], mode='lines', name='EMA100'))
         fig.add_trace(go.Scatter(x=df.index, y=df['EMA200'], mode='lines', name='EMA200'))
         fig.update_layout(title='Exponential Moving Averages (EMA)', xaxis_title='Date', yaxis_title='Price')
 
-        # Generate recommendation
         latest_data = df.iloc[-1]
         if latest_data['EMA20'] > latest_data['EMA50'] and latest_data['EMA50'] > latest_data['EMA100']:
             recommendation = "The EMA signal indicates a **strong buy** recommendation."
@@ -154,9 +143,9 @@ def perform_technical_analysis(df, analysis_type):
             recommendation = "The EMA signal indicates a **hold** recommendation."
 
     elif analysis_type == 'Stochastic Oscillator':
-        low_14 = df['low'].rolling(window=14).min()
-        high_14 = df['high'].rolling(window=14).max()
-        df['%K'] = 100 * (df['close'] - low_14) / (high_14 - low_14)
+        df['L14'] = df['Low'].rolling(window=14).min()
+        df['H14'] = df['High'].rolling(window=14).max()
+        df['%K'] = 100 * ((df['Close'] - df['L14']) / (df['H14'] - df['L14']))
         df['%D'] = df['%K'].rolling(window=3).mean()
 
         fig = go.Figure()
@@ -166,91 +155,79 @@ def perform_technical_analysis(df, analysis_type):
         fig.add_hline(y=80, line_dash="dash", line_color="red", annotation_text="Overbought")
         fig.add_hline(y=20, line_dash="dash", line_color="green", annotation_text="Oversold")
 
-        # Generate recommendation
         latest_k = df['%K'].iloc[-1]
+        latest_d = df['%D'].iloc[-1]
         if latest_k > 80:
-            recommendation = "The Stochastic Oscillator signal indicates the asset is **overbought**. Consider selling."
+            recommendation = "The Stochastic Oscillator indicates the asset is **overbought**. Consider selling."
         elif latest_k < 20:
-            recommendation = "The Stochastic Oscillator signal indicates the asset is **oversold**. Consider buying."
+            recommendation = "The Stochastic Oscillator indicates the asset is **oversold**. Consider buying."
         else:
-            recommendation = "The Stochastic Oscillator signal indicates the asset is **neutral**. No clear action recommended."
+            recommendation = "The Stochastic Oscillator indicates the asset is **neutral**. No clear action recommended."
 
     elif analysis_type == 'Average Directional Index (ADX)':
-        df['TR'] = df[['high', 'low', 'close']].diff().abs().max(axis=1)
-        df['+DM'] = df['high'].diff().apply(lambda x: x if x > 0 else 0)
-        df['-DM'] = df['low'].diff().apply(lambda x: abs(x) if x < 0 else 0)
-        df['+DI'] = 100 * (df['+DM'].ewm(span=14).mean() / df['TR'].ewm(span=14).mean())
-        df['-DI'] = 100 * (df['-DM'].ewm(span=14).mean() / df['TR'].ewm(span=14).mean())
-        df['DX'] = 100 * (abs(df['+DI'] - df['-DI']) / (df['+DI'] + df['-DI']))
-        df['ADX'] = df['DX'].ewm(span=14).mean()
+        df['TR'] = ta.trange(df['High'], df['Low'], df['Close'])
+        df['+DM'] = ta.PLUS_DM(df['High'], df['Low'])
+        df['-DM'] = ta.MINUS_DM(df['High'], df['Low'])
+        df['+DI'] = 100 * (df['+DM'] / df['TR'].rolling(window=14).sum())
+        df['-DI'] = 100 * (df['-DM'] / df['TR'].rolling(window=14).sum())
+        df['ADX'] = ta.ADX(df['High'], df['Low'], df['Close'], timeperiod=14)
 
         fig = go.Figure()
+        fig.add_trace(go.Scatter(x=df.index, y=df['+DI'], mode='lines', name='+DI'))
+        fig.add_trace(go.Scatter(x=df.index, y=df['-DI'], mode='lines', name='-DI'))
         fig.add_trace(go.Scatter(x=df.index, y=df['ADX'], mode='lines', name='ADX'))
-        fig.update_layout(title='Average Directional Index (ADX)', xaxis_title='Date', yaxis_title='ADX')
+        fig.update_layout(title='Average Directional Index (ADX)', xaxis_title='Date', yaxis_title='Value')
 
-        # Generate recommendation
         latest_adx = df['ADX'].iloc[-1]
         if latest_adx > 25:
-            recommendation = "The ADX signal indicates a **strong trend**. Consider trading."
+            recommendation = "The ADX indicates a **strong trend**."
         else:
-            recommendation = "The ADX signal indicates a **weak trend**. Consider holding."
+            recommendation = "The ADX indicates a **weak trend**."
 
     elif analysis_type == 'Ichimoku Cloud':
-        df['tenkan_sen'] = (df['high'].rolling(window=9).max() + df['low'].rolling(window=9).min()) / 2
-        df['kijun_sen'] = (df['high'].rolling(window=26).max() + df['low'].rolling(window=26).min()) / 2
-        df['senkou_span_a'] = ((df['tenkan_sen'] + df['kijun_sen']) / 2).shift(26)
-        df['senkou_span_b'] = ((df['high'].rolling(window=52).max() + df['low'].rolling(window=52).min()) / 2).shift(26)
-        df['chikou_span'] = df['close'].shift(-26)
+        df['Tenkan-sen'] = (df['High'].rolling(window=9).max() + df['Low'].rolling(window=9).min()) / 2
+        df['Kijun-sen'] = (df['High'].rolling(window=26).max() + df['Low'].rolling(window=26).min()) / 2
+        df['Senkou Span A'] = ((df['Tenkan-sen'] + df['Kijun-sen']) / 2).shift(26)
+        df['Senkou Span B'] = ((df['High'].rolling(window=52).max() + df['Low'].rolling(window=52).min()) / 2).shift(26)
+        df['Chikou Span'] = df['Close'].shift(-26)
 
         fig = go.Figure()
-        fig.add_trace(go.Scatter(x=df.index, y=df['tenkan_sen'], mode='lines', name='Tenkan-sen'))
-        fig.add_trace(go.Scatter(x=df.index, y=df['kijun_sen'], mode='lines', name='Kijun-sen'))
-        fig.add_trace(go.Scatter(x=df.index, y=df['senkou_span_a'], mode='lines', name='Senkou Span A'))
-        fig.add_trace(go.Scatter(x=df.index, y=df['senkou_span_b'], mode='lines', name='Senkou Span B'))
-        fig.add_trace(go.Scatter(x=df.index, y=df['chikou_span'], mode='lines', name='Chikou Span'))
-        fig.update_layout(title='Ichimoku Cloud', xaxis_title='Date', yaxis_title='Value')
+        fig.add_trace(go.Scatter(x=df.index, y=df['Close'], mode='lines', name='Close'))
+        fig.add_trace(go.Scatter(x=df.index, y=df['Tenkan-sen'], mode='lines', name='Tenkan-sen'))
+        fig.add_trace(go.Scatter(x=df.index, y=df['Kijun-sen'], mode='lines', name='Kijun-sen'))
+        fig.add_trace(go.Scatter(x=df.index, y=df['Senkou Span A'], mode='lines', fill='tonexty', name='Senkou Span A'))
+        fig.add_trace(go.Scatter(x=df.index, y=df['Senkou Span B'], mode='lines', fill='tonexty', name='Senkou Span B'))
+        fig.add_trace(go.Scatter(x=df.index, y=df['Chikou Span'], mode='lines', name='Chikou Span'))
+        fig.update_layout(title='Ichimoku Cloud', xaxis_title='Date', yaxis_title='Price')
 
-        # Generate recommendation
-        latest_close = df['close'].iloc[-1]
-        latest_senkou_a = df['senkou_span_a'].iloc[-1]
-        latest_senkou_b = df['senkou_span_b'].iloc[-1]
-        if latest_close > latest_senkou_a and latest_close > latest_senkou_b:
-            recommendation = "The Ichimoku Cloud signal indicates a **bullish** trend. Consider buying."
-        elif latest_close < latest_senkou_a and latest_close < latest_senkou_b:
-            recommendation = "The Ichimoku Cloud signal indicates a **bearish** trend. Consider selling."
+        latest_close = df['Close'].iloc[-1]
+        latest_span_a = df['Senkou Span A'].iloc[-1]
+        latest_span_b = df['Senkou Span B'].iloc[-1]
+        if latest_close > latest_span_a and latest_close > latest_span_b:
+            recommendation = "The Ichimoku Cloud indicates a **strong buy** recommendation."
+        elif latest_close < latest_span_a and latest_close < latest_span_b:
+            recommendation = "The Ichimoku Cloud indicates a **strong sell** recommendation."
         else:
-            recommendation = "The Ichimoku Cloud signal indicates a **neutral** trend. No clear action recommended."
+            recommendation = "The Ichimoku Cloud indicates a **neutral** recommendation."
 
     elif analysis_type == 'Engulfing Pattern':
-        df['Engulfing'] = ((df['open'].shift(1) > df['close'].shift(1)) & (df['open'] < df['close']) & (df['open'] < df['close'].shift(1)) & (df['close'] > df['open'].shift(1))) | \
-                          ((df['open'].shift(1) < df['close'].shift(1)) & (df['open'] > df['close']) & (df['open'] > df['close'].shift(1)) & (df['close'] < df['open'].shift(1)))
+        df['Engulfing'] = ta.CDLENGULFING(df['Open'], df['High'], df['Low'], df['Close'])
 
-        fig = go.Figure(data=[go.Candlestick(
-            x=df.index,
-            open=df['open'],
-            high=df['high'],
-            low=df['low'],
-            close=df['close']
-        )])
-        engulfing_df = df[df['Engulfing']]
-        fig.add_trace(go.Scatter(
-            x=engulfing_df.index,
-            y=engulfing_df['close'],
-            mode='markers',
-            marker=dict(size=10, color='red'),
-            name='Engulfing Pattern'
-        ))
+        fig = go.Figure()
+        fig.add_trace(go.Candlestick(x=df.index, open=df['Open'], high=df['High'], low=df['Low'], close=df['Close']))
+        engulfing_indices = df[df['Engulfing'] != 0].index
+        for idx in engulfing_indices:
+            fig.add_shape(type="rect", x0=idx, x1=idx, y0=df['Low'][idx], y1=df['High'][idx], line=dict(color="blue", width=2))
+
         fig.update_layout(title='Engulfing Pattern', xaxis_title='Date', yaxis_title='Price')
 
-        # Generate recommendation
-        if not engulfing_df.empty:
-            last_engulfing = engulfing_df.index[-1]
-            if df.loc[last_engulfing]['close'] > df.loc[last_engulfing]['open']:
-                recommendation = "The Engulfing Pattern signal indicates a **bullish** trend. Consider buying."
-            else:
-                recommendation = "The Engulfing Pattern signal indicates a **bearish** trend. Consider selling."
+        latest_engulfing = df['Engulfing'].iloc[-1]
+        if latest_engulfing > 0:
+            recommendation = "The Engulfing Pattern indicates a **bullish reversal**."
+        elif latest_engulfing < 0:
+            recommendation = "The Engulfing Pattern indicates a **bearish reversal**."
         else:
-            recommendation = "No recent engulfing pattern detected. No clear action recommended."
+            recommendation = "No Engulfing Pattern detected."
 
     return fig, recommendation
 
