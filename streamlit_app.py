@@ -110,15 +110,14 @@ def perform_technical_analysis(df, analysis_type):
             recommendation = "The Bollinger Bands signal indicates the asset is **oversold**."
         else:
             recommendation = "The Bollinger Bands signal indicates the asset is **neutral**."
+    elif analysis_type == 'On-Balance Volume (OBV)':
+            df['OBV'] = (np.sign(df['Close'].diff()) * df['Volume']).fillna(0).cumsum()
 
-     elif analysis_type == 'On-Balance Volume (OBV)':
-        df['OBV'] = (np.sign(df['Close'].diff()) * df['Volume']).fillna(0).cumsum()
+            fig = go.Figure()
+            fig.add_trace(go.Scatter(x=df.index, y=df['OBV'], mode='lines', name='OBV'))
+            fig.update_layout(title='On-Balance Volume (OBV)', xaxis_title='Date', yaxis_title='OBV')
 
-        fig = go.Figure()
-        fig.add_trace(go.Scatter(x=df.index, y=df['OBV'], mode='lines', name='OBV'))
-        fig.update_layout(title='On-Balance Volume (OBV)', xaxis_title='Date', yaxis_title='OBV')
-
-        recommendation = "The OBV is a cumulative indicator and provides insights based on volume flow. Interpret in context."
+            recommendation = "The OBV is a cumulative indicator and provides insights based on volume flow. Interpret in context."
 
     elif analysis_type == 'Exponential Moving Averages (EMA)':
         df['EMA20'] = df['Close'].ewm(span=20, adjust=False).mean()
