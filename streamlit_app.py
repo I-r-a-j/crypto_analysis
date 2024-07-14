@@ -2,22 +2,11 @@ import streamlit as st
 import yfinance as yf
 import pandas as pd
 import plotly.graph_objs as go
-import numpy as np
-import talib as ta
-
-import streamlit as st
-import yfinance as yf
-import pandas as pd
-import plotly.graph_objs as go
-import numpy as np
-import talib as ta
-
 # Fetch data function with progress disabled
 def fetch_data(symbol, period='5y'):
     df = yf.download(symbol, period=period, progress=False)
     df.reset_index(inplace=True)
     return df
-
 # Plot candlestick chart function
 def plot_candlestick_chart(df):
     fig = go.Figure(data=[go.Candlestick(x=df['Date'],
@@ -27,18 +16,15 @@ def plot_candlestick_chart(df):
                                          close=df['Close'])])
     fig.update_layout(title='Candlestick Chart', xaxis_title='Date', yaxis_title='Price')
     return fig
-
 # Perform technical analysis function
 def perform_technical_analysis(df, analysis_type):
     df.set_index('Date', inplace=True)
     recommendation = "No recommendation available."
-
     if analysis_type == 'Moving Averages':
         df['SMA20'] = df['Close'].rolling(window=20).mean()
         df['SMA50'] = df['Close'].rolling(window=50).mean()
         df['SMA100'] = df['Close'].rolling(window=100).mean()
         df['SMA200'] = df['Close'].rolling(window=200).mean()
-
         fig = go.Figure()
         fig.add_trace(go.Scatter(x=df.index, y=df['Close'], mode='lines', name='Actual Data'))
         fig.add_trace(go.Scatter(x=df.index, y=df['SMA20'], mode='lines', name='SMA20'))
@@ -46,7 +32,6 @@ def perform_technical_analysis(df, analysis_type):
         fig.add_trace(go.Scatter(x=df.index, y=df['SMA100'], mode='lines', name='SMA100'))
         fig.add_trace(go.Scatter(x=df.index, y=df['SMA200'], mode='lines', name='SMA200'))
         fig.update_layout(title='Moving Averages', xaxis_title='Date', yaxis_title='Price')
-
         latest_data = df.iloc[-1]
         if latest_data['SMA20'] > latest_data['SMA50'] and latest_data['SMA50'] > latest_data['SMA100']:
             recommendation = "The SMA signal indicates a **strong buy** recommendation."
@@ -54,7 +39,6 @@ def perform_technical_analysis(df, analysis_type):
             recommendation = "The SMA signal indicates a **strong sell** recommendation."
         else:
             recommendation = "The SMA signal indicates a **hold** recommendation."
-
     elif analysis_type == 'RSI':
         delta = df['Close'].diff(1)
         gain = delta.where(delta > 0, 0)
@@ -63,13 +47,11 @@ def perform_technical_analysis(df, analysis_type):
         avg_loss = loss.rolling(window=14).mean()
         rs = avg_gain / avg_loss
         df['RSI'] = 100 - (100 / (1 + rs))
-
         fig = go.Figure()
         fig.add_trace(go.Scatter(x=df.index, y=df['RSI'], mode='lines', name='RSI'))
         fig.update_layout(title='Relative Strength Index (RSI)', xaxis_title='Date', yaxis_title='RSI')
         fig.add_hline(y=70, line_dash="dash", line_color="red", annotation_text="Overbought")
         fig.add_hline(y=30, line_dash="dash", line_color="green", annotation_text="Oversold")
-
         latest_rsi = df['RSI'].iloc[-1]
         if latest_rsi > 70:
             recommendation = "The RSI signal indicates the asset is **overbought**. Consider selling."
@@ -77,18 +59,15 @@ def perform_technical_analysis(df, analysis_type):
             recommendation = "The RSI signal indicates the asset is **oversold**. Consider buying."
         else:
             recommendation = "The RSI signal indicates the asset is **neutral**. No clear action recommended."
-
     elif analysis_type == 'MACD':
         df['EMA12'] = df['Close'].ewm(span=12, adjust=False).mean()
         df['EMA26'] = df['Close'].ewm(span=26, adjust=False).mean()
         df['MACD'] = df['EMA12'] - df['EMA26']
         df['Signal Line'] = df['MACD'].ewm(span=9, adjust=False).mean()
-
         fig = go.Figure()
         fig.add_trace(go.Scatter(x=df.index, y=df['MACD'], mode='lines', name='MACD'))
         fig.add_trace(go.Scatter(x=df.index, y=df['Signal Line'], mode='lines', name='Signal Line'))
         fig.update_layout(title='MACD', xaxis_title='Date', yaxis_title='Value')
-
         latest_macd = df['MACD'].iloc[-1]
         latest_signal = df['Signal Line'].iloc[-1]
         if latest_macd > latest_signal:
@@ -97,19 +76,16 @@ def perform_technical_analysis(df, analysis_type):
             recommendation = "The MACD signal indicates a **sell** recommendation."
         else:
             recommendation = "The MACD signal indicates a **hold** recommendation."
-
     elif analysis_type == 'Bollinger Bands':
         df['MA'] = df['Close'].rolling(window=20).mean()
         df['STD'] = df['Close'].rolling(window=20).std()
         df['Upper Band'] = df['MA'] + (2 * df['STD'])
         df['Lower Band'] = df['MA'] - (2 * df['STD'])
-
         fig = go.Figure()
         fig.add_trace(go.Scatter(x=df.index, y=df['Close'], mode='lines', name='Close'))
         fig.add_trace(go.Scatter(x=df.index, y=df['Upper Band'], mode='lines', name='Upper Band'))
         fig.add_trace(go.Scatter(x=df.index, y=df['Lower Band'], mode='lines', name='Lower Band'))
         fig.update_layout(title='Bollinger Bands', xaxis_title='Date', yaxis_title='Price')
-
         latest_close = df['Close'].iloc[-1]
         latest_upper = df['Upper Band'].iloc[-1]
         latest_lower = df['Lower Band'].iloc[-1]
@@ -120,21 +96,11 @@ def perform_technical_analysis(df, analysis_type):
         else:
             recommendation = "The Bollinger Bands signal indicates the asset is **neutral**."
 
-    elif analysis_type == 'On-Balance Volume (OBV)':
-        df['OBV'] = (np.sign(df['Close'].diff()) * df['Volume']).fillna(0).cumsum()
-
-        fig = go.Figure()
-        fig.add_trace(go.Scatter(x=df.index, y=df['OBV'], mode='lines', name='OBV'))
-        fig.update_layout(title='On-Balance Volume (OBV)', xaxis_title='Date', yaxis_title='OBV')
-
-        recommendation = "The OBV is a cumulative indicator and provides insights based on volume flow. Interpret in context."
-
     elif analysis_type == 'Exponential Moving Averages (EMA)':
         df['EMA20'] = df['Close'].ewm(span=20, adjust=False).mean()
         df['EMA50'] = df['Close'].ewm(span=50, adjust=False).mean()
         df['EMA100'] = df['Close'].ewm(span=100, adjust=False).mean()
         df['EMA200'] = df['Close'].ewm(span=200, adjust=False).mean()
-
         fig = go.Figure()
         fig.add_trace(go.Scatter(x=df.index, y=df['Close'], mode='lines', name='Actual Data'))
         fig.add_trace(go.Scatter(x=df.index, y=df['EMA20'], mode='lines', name='EMA20'))
@@ -142,7 +108,6 @@ def perform_technical_analysis(df, analysis_type):
         fig.add_trace(go.Scatter(x=df.index, y=df['EMA100'], mode='lines', name='EMA100'))
         fig.add_trace(go.Scatter(x=df.index, y=df['EMA200'], mode='lines', name='EMA200'))
         fig.update_layout(title='Exponential Moving Averages (EMA)', xaxis_title='Date', yaxis_title='Price')
-
         latest_data = df.iloc[-1]
         if latest_data['EMA20'] > latest_data['EMA50'] and latest_data['EMA50'] > latest_data['EMA100']:
             recommendation = "The EMA signal indicates a **strong buy** recommendation."
@@ -150,102 +115,69 @@ def perform_technical_analysis(df, analysis_type):
             recommendation = "The EMA signal indicates a **strong sell** recommendation."
         else:
             recommendation = "The EMA signal indicates a **hold** recommendation."
-
-    elif analysis_type == 'Stochastic':
+    elif analysis_type == 'Stochastic Oscillator':
         df['L14'] = df['Low'].rolling(window=14).min()
         df['H14'] = df['High'].rolling(window=14).max()
-        df['%K'] = (df['Close'] - df['L14']) / (df['H14'] - df['L14']) * 100
+        df['%K'] = 100 * ((df['Close'] - df['L14']) / (df['H14'] - df['L14']))
         df['%D'] = df['%K'].rolling(window=3).mean()
-
         fig = go.Figure()
-        fig.add_trace(go.Scatter(x=df.index, y=df['%K'], mode='lines', name='Stochastic %K'))
-        fig.add_trace(go.Scatter(x=df.index, y=df['%D'], mode='lines', name='Stochastic %D'))
+        fig.add_trace(go.Scatter(x=df.index, y=df['%K'], mode='lines', name='%K'))
+        fig.add_trace(go.Scatter(x=df.index, y=df['%D'], mode='lines', name='%D'))
         fig.update_layout(title='Stochastic Oscillator', xaxis_title='Date', yaxis_title='Value')
         fig.add_hline(y=80, line_dash="dash", line_color="red", annotation_text="Overbought")
         fig.add_hline(y=20, line_dash="dash", line_color="green", annotation_text="Oversold")
-
         latest_k = df['%K'].iloc[-1]
+        latest_d = df['%D'].iloc[-1]
         if latest_k > 80:
             recommendation = "The Stochastic Oscillator indicates the asset is **overbought**. Consider selling."
         elif latest_k < 20:
             recommendation = "The Stochastic Oscillator indicates the asset is **oversold**. Consider buying."
         else:
             recommendation = "The Stochastic Oscillator indicates the asset is **neutral**. No clear action recommended."
-
-    elif analysis_type == 'ADX':
-        df['ADX'] = ta.ADX(df['High'], df['Low'], df['Close'], timeperiod=14)
-
-        fig = go.Figure()
-        fig.add_trace(go.Scatter(x=df.index, y=df['ADX'], mode='lines', name='ADX'))
-        fig.update_layout(title='Average Directional Index (ADX)', xaxis_title='Date', yaxis_title='Value')
-        fig.add_hline(y=25, line_dash="dash", line_color="blue", annotation_text="Trend")
-
-        latest_adx = df['ADX'].iloc[-1]
-        if latest_adx > 25:
-            recommendation = "The ADX indicates a **strong trend**."
-        else:
-            recommendation = "The ADX indicates a **weak or no trend**."
-
+   
     elif analysis_type == 'Ichimoku Cloud':
         df['Tenkan-sen'] = (df['High'].rolling(window=9).max() + df['Low'].rolling(window=9).min()) / 2
         df['Kijun-sen'] = (df['High'].rolling(window=26).max() + df['Low'].rolling(window=26).min()) / 2
         df['Senkou Span A'] = ((df['Tenkan-sen'] + df['Kijun-sen']) / 2).shift(26)
         df['Senkou Span B'] = ((df['High'].rolling(window=52).max() + df['Low'].rolling(window=52).min()) / 2).shift(26)
         df['Chikou Span'] = df['Close'].shift(-26)
-
         fig = go.Figure()
         fig.add_trace(go.Scatter(x=df.index, y=df['Close'], mode='lines', name='Close'))
         fig.add_trace(go.Scatter(x=df.index, y=df['Tenkan-sen'], mode='lines', name='Tenkan-sen'))
         fig.add_trace(go.Scatter(x=df.index, y=df['Kijun-sen'], mode='lines', name='Kijun-sen'))
         fig.add_trace(go.Scatter(x=df.index, y=df['Senkou Span A'], mode='lines', fill='tonexty', name='Senkou Span A'))
         fig.add_trace(go.Scatter(x=df.index, y=df['Senkou Span B'], mode='lines', fill='tonexty', name='Senkou Span B'))
+        fig.add_trace(go.Scatter(x=df.index, y=df['Chikou Span'], mode='lines', name='Chikou Span'))
         fig.update_layout(title='Ichimoku Cloud', xaxis_title='Date', yaxis_title='Price')
-
         latest_close = df['Close'].iloc[-1]
         latest_span_a = df['Senkou Span A'].iloc[-1]
         latest_span_b = df['Senkou Span B'].iloc[-1]
         if latest_close > latest_span_a and latest_close > latest_span_b:
-            recommendation = "The Ichimoku Cloud indicates a **buy** recommendation."
+            recommendation = "The Ichimoku Cloud indicates a **strong buy** recommendation."
         elif latest_close < latest_span_a and latest_close < latest_span_b:
-            recommendation = "The Ichimoku Cloud indicates a **sell** recommendation."
+            recommendation = "The Ichimoku Cloud indicates a **strong sell** recommendation."
         else:
             recommendation = "The Ichimoku Cloud indicates a **neutral** recommendation."
-
-    elif analysis_type == 'Engulfing Pattern':
-        df['Engulfing'] = ta.CDLENGULFING(df['Open'], df['High'], df['Low'], df['Close'])
-
-        fig = go.Figure()
-        fig.add_trace(go.Scatter(x=df.index, y=df['Engulfing'], mode='markers', name='Engulfing'))
-        fig.update_layout(title='Engulfing Pattern', xaxis_title='Date', yaxis_title='Pattern')
-
-        latest_engulfing = df['Engulfing'].iloc[-1]
-        if latest_engulfing > 0:
-            recommendation = "The Engulfing pattern indicates a **bullish reversal**."
-        elif latest_engulfing < 0:
-            recommendation = "The Engulfing pattern indicates a **bearish reversal**."
-        else:
-            recommendation = "No Engulfing pattern detected."
-
+    
     return fig, recommendation
-
-# Sidebar for user inputs
-st.sidebar.header("User Input")
-symbol = st.sidebar.selectbox("Select Cryptocurrency", ('btc-usd', 'eth-usd', 'ltc-usd', 'doge-usd'))
-analysis_type = st.sidebar.selectbox("Select Technical Analysis Type", ('Moving Averages', 'RSI', 'MACD', 'Bollinger Bands', 'On-Balance Volume (OBV)', 'Exponential Moving Averages (EMA)', 'Stochastic', 'ADX', 'Ichimoku Cloud', 'Engulfing Pattern'))
-
-# Main section
-st.header(f"{symbol.upper()} Analysis")
-
-# Fetch data
-data = fetch_data(symbol)
-
-# Plot candlestick chart
-candlestick_fig = plot_candlestick_chart(data)
-st.plotly_chart(candlestick_fig)
-
-# Perform technical analysis
-tech_analysis_fig, recommendation = perform_technical_analysis(data, analysis_type)
-st.plotly_chart(tech_analysis_fig)
-
-# Display recommendation
-st.write(f"### Recommendation: {recommendation}")
+# Streamlit app
+st.title("Cryptocurrency Analysis Dashboard")
+# Sidebar options
+st.sidebar.title("Options")
+symbols = ['btc-usd', 'eth-usd', 'ltc-usd', 'doge-usd']
+selected_symbol = st.sidebar.selectbox('Select Cryptocurrency', symbols)
+technical_analysis_type = st.sidebar.selectbox('Select Technical Analysis Type', 
+                                               ['Moving Averages', 'RSI', 'MACD', 'Bollinger Bands', 
+                                                'Exponential Moving Averages (EMA)', 
+                                                'Stochastic Oscillator', 
+                                                'Ichimoku Cloud'])
+# Fetch data for selected symbol
+data = fetch_data(selected_symbol)
+# Display candlestick chart
+st.subheader(f"{selected_symbol.upper()} Candlestick Chart")
+st.plotly_chart(plot_candlestick_chart(data))
+# Perform selected technical analysis
+st.subheader(f"{selected_symbol.upper()} {technical_analysis_type} Analysis")
+analysis_fig, recommendation = perform_technical_analysis(data, technical_analysis_type)
+st.plotly_chart(analysis_fig)
+st.markdown(recommendation)
