@@ -2,8 +2,7 @@ import streamlit as st
 import yfinance as yf
 import pandas as pd
 import plotly.graph_objs as go
-import pickle
-from urllib.error import URLError
+import joblib  # Add this import
 
 # Fetch data function with progress disabled
 def fetch_data(symbol, period='5y'):
@@ -132,128 +131,112 @@ def perform_technical_analysis(df, analysis_type):
         fig.add_hline(y=80, line_dash="dash", line_color="red", annotation_text="Overbought")
         fig.add_hline(y=20, line_dash="dash", line_color="green", annotation_text="Oversold")
         latest_k = df['%K'].iloc[-1]
-        if latest_k > 80:
-            recommendation = "The Stochastic Oscillator signal indicates the asset is **overbought**."
-        elif latest_k < 20:
-            recommendation = "The Stochastic Oscillator signal indicates the asset is **oversold**."
+        latest_d = df['%D'].iloc[-1]
+        if latest_k > 80 and latest_d > 80:
+            recommendation = "The Stochastic Oscillator indicates the asset is **overbought**."
+        elif latest_k < 20 and latest_d < 20:
+            recommendation = "The Stochastic Oscillator indicates the asset is **oversold**."
         else:
-            recommendation = "The Stochastic Oscillator signal indicates the asset is **neutral**."
-    elif analysis_type == 'ADX':
-        df['TR'] = df[['High', 'Low', 'Close']].max(axis=1) - df[['High', 'Low', 'Close']].min(axis=1)
+            recommendation = "The Stochastic Oscillator indicates the asset is **neutral**."
+    elif analysis_type == 'ADX (Average Directional Index)':
         df['+DM'] = df['High'].diff()
-        df['-DM'] = -df['Low'].diff()
-        df['+DM'] = df['+DM'].where((df['+DM'] > df['-DM']) & (df['+DM'] > 0), 0)
-        df['-DM'] = df['-DM'].where((df['-DM'] > df['+DM']) & (df['-DM'] > 0), 0)
-        df['TR'] = df['TR'].rolling(window=14).sum()
-        df['+DM'] = df['+DM'].rolling(window=14).sum()
-        df['-DM'] = df['-DM'].rolling(window=14).sum()
-        df['+DI'] = 100 * (df['+DM'] / df['TR'])
-        df['-DI'] = 100 * (df['-DM'] / df['TR'])
-        df['DX'] = 100 * (abs(df['+DI'] - df['-DI']) / (df['+DI'] + df['-DI']))
+        df['-DM'] = df['Low'].diff().abs()
+        df['TR'] = df[['High', 'Close']].max(axis=1) - df[['Low', 'Close']].min(axis=1)
+        df['ATR'] = df['TR'].rolling(window=14).mean()
+        df['+DI'] = 100 * (df['+DM'] / df['ATR']).rolling(window=14).mean()
+        df['-DI'] = 100 * (df['-DM'] / df['ATR']).rolling(window=14).mean()
+        df['DX'] = (abs(df['+DI'] - df['-DI']) / (df['+DI'] + df['-DI'])) * 100
         df['ADX'] = df['DX'].rolling(window=14).mean()
         fig = go.Figure()
-        fig.add_trace(go.Scatter(x=df.index, y=df['+DI'], mode='lines', name='+DI'))
-        fig.add_trace(go.Scatter(x=df.index, y=df['-DI'], mode='lines', name='-DI'))
         fig.add_trace(go.Scatter(x=df.index, y=df['ADX'], mode='lines', name='ADX'))
-        fig.update_layout(title='ADX', xaxis_title='Date', yaxis_title='Value')
+        fig.update_layout(title='Average Directional Index (ADX)', xaxis_title='Date', yaxis_title='ADX')
         latest_adx = df['ADX'].iloc[-1]
         if latest_adx > 25:
-            recommendation = "The ADX signal indicates a **strong trend**."
+            recommendation = "The ADX indicates a **strong trend**. Consider following the trend."
         else:
-            recommendation = "The ADX signal indicates a **weak trend**."
+            recommendation = "The ADX indicates a **weak trend**. No clear action recommended."
     elif analysis_type == 'Ichimoku Cloud':
-        high_9 = df['High'].rolling(window=9).max()
-        low_9 = df['Low'].rolling(window=9).min()
-        df['Conversion Line'] = (high_9 + low_9) / 2
-        high_26 = df['High'].rolling(window=26).max()
-        low_26 = df['Low'].rolling(window=26).min()
-        df['Base Line'] = (high_26 + low_26) / 2
+        df['Conversion Line'] = (df['High'].rolling(window=9).max() + df['Low'].rolling(window=9).min()) / 2
+        df['Base Line'] = (df['High'].rolling(window=26).max() + df['Low'].rolling(window=26).min()) / 2
         df['Leading Span A'] = ((df['Conversion Line'] + df['Base Line']) / 2).shift(26)
-        high_52 = df['High'].rolling(window=52).max()
-        low_52 = df['Low'].rolling(window=52).min()
-        df['Leading Span B'] = ((high_52 + low_52) / 2).shift(26)
+        df['Leading Span B'] = ((df['High'].rolling(window=52).max() + df['Low'].rolling(window=52).min()) / 2).shift(26)
         df['Lagging Span'] = df['Close'].shift(-26)
         fig = go.Figure()
         fig.add_trace(go.Scatter(x=df.index, y=df['Close'], mode='lines', name='Close'))
-        fig.add_trace(go.Scatter(x=df.index, y=df['Conversion Line'], mode='lines', name='Conversion Line'))
-        fig.add_trace(go.Scatter(x=df.index, y=df['Base Line'], mode='lines', name='Base Line'))
-        fig.add_trace(go.Scatter(x=df.index, y=df['Leading Span A'], mode='lines', name='Leading Span A', fill='tonexty'))
-        fig.add_trace(go.Scatter(x=df.index, y=df['Leading Span B'], mode='lines', name='Leading Span B', fill='tonexty'))
-        fig.add_trace(go.Scatter(x=df.index, y=df['Lagging Span'], mode='lines', name='Lagging Span'))
+        fig.add_trace(go.Scatter(x=df.index, y=df['Leading Span A'], mode='lines', name='Leading Span A'))
+        fig.add_trace(go.Scatter(x=df.index, y=df['Leading Span B'], mode='lines', name='Leading Span B'))
         fig.update_layout(title='Ichimoku Cloud', xaxis_title='Date', yaxis_title='Value')
         latest_close = df['Close'].iloc[-1]
-        latest_conversion = df['Conversion Line'].iloc[-1]
-        latest_base = df['Base Line'].iloc[-1]
-        if latest_close > latest_conversion and latest_conversion > latest_base:
-            recommendation = "The Ichimoku Cloud signal indicates a **strong buy** recommendation."
-        elif latest_close < latest_conversion and latest_conversion < latest_base:
-            recommendation = "The Ichimoku Cloud signal indicates a **strong sell** recommendation."
+        latest_span_a = df['Leading Span A'].iloc[-1]
+        latest_span_b = df['Leading Span B'].iloc[-1]
+        if latest_close > latest_span_a and latest_close > latest_span_b:
+            recommendation = "The Ichimoku Cloud indicates a **buy** signal."
+        elif latest_close < latest_span_a and latest_close < latest_span_b:
+            recommendation = "The Ichimoku Cloud indicates a **sell** signal."
         else:
-            recommendation = "The Ichimoku Cloud signal indicates a **hold** recommendation."
+            recommendation = "The Ichimoku Cloud indicates a **neutral** signal."
     elif analysis_type == 'Engulfing Pattern':
-        df['Engulfing'] = ((df['Close'].shift(1) < df['Open'].shift(1)) & (df['Close'] > df['Open']) & (df['Close'] > df['Open'].shift(1)) & (df['Open'] < df['Close'].shift(1))) | \
-                          ((df['Close'].shift(1) > df['Open'].shift(1)) & (df['Close'] < df['Open']) & (df['Close'] < df['Open'].shift(1)) & (df['Open'] > df['Close'].shift(1)))
+        df['Engulfing'] = ((df['Open'].shift(1) < df['Close'].shift(1)) & (df['Open'] > df['Close']) & (df['Open'] > df['Close'].shift(1)) & (df['Close'] < df['Open'].shift(1))) | ((df['Open'].shift(1) > df['Close'].shift(1)) & (df['Open'] < df['Close']) & (df['Open'] < df['Close'].shift(1)) & (df['Close'] > df['Open'].shift(1)))
+        fig = go.Figure()
+        fig.add_trace(go.Candlestick(x=df.index, open=df['Open'], high=df['High'], low=df['Low'], close=df['Close'], name='Candlesticks'))
         engulfing_dates = df[df['Engulfing']].index
-        fig = go.Figure(data=[go.Candlestick(x=df.index, open=df['Open'], high=df['High'], low=df['Low'], close=df['Close'])])
-        for date in engulfing_dates:
-            fig.add_vline(x=date, line=dict(color='green', width=2, dash='dash'))
+        fig.add_trace(go.Scatter(x=engulfing_dates, y=df.loc[engulfing_dates, 'Close'], mode='markers', name='Engulfing Pattern', marker=dict(symbol='circle', size=10, color='red')))
         fig.update_layout(title='Engulfing Pattern', xaxis_title='Date', yaxis_title='Price')
-        if len(engulfing_dates) > 0:
-            recommendation = "The Engulfing Pattern signal indicates a **potential reversal**. Observe the market closely."
+        latest_engulfing = df['Engulfing'].iloc[-1]
+        if latest_engulfing:
+            recommendation = "An Engulfing Pattern indicates a **potential reversal**. Consider this as a trading signal."
         else:
-            recommendation = "No Engulfing Pattern detected."
+            recommendation = "No Engulfing Pattern detected. No clear action recommended."
+    else:
+        fig = go.Figure()
     return fig, recommendation
 
-# Load the pre-trained models
-def load_models():
-    urls = {
-        'btc-usd': 'https://github.com/I-r-a-j/crypto_analysis/blob/main/btc_model.pkl',
-        'eth-usd': 'https://github.com/I-r-a-j/crypto_analysis/blob/main/eth_model.pkl',
-        'ltc-usd': 'https://github.com/I-r-a-j/crypto_analysis/blob/main/ltc_model.pkl',
-        'doge-usd': 'https://github.com/I-r-a-j/crypto_analysis/blob/main/doge_model.pkl'
-    }
-    models = {}
-    for symbol, url in urls.items():
-        try:
-            with st.spinner(f"Loading model for {symbol}..."):
-                model = pickle.load(urllib.request.urlopen(url))
-                models[symbol] = model
-        except (URLError, pickle.UnpicklingError) as e:
-            st.error(f"Error loading model for {symbol}: {e}")
-    return models
+# Streamlit app setup
+st.title('Cryptocurrency Analysis Dashboard')
 
-# Main function
-def main():
-    st.sidebar.title('Cryptocurrency Dashboard')
-    symbol = st.sidebar.selectbox('Select Cryptocurrency', ('btc-usd', 'eth-usd', 'ltc-usd', 'doge-usd'))
-    analysis_type = st.sidebar.selectbox('Select Technical Analysis Type', ('Moving Averages', 'RSI', 'MACD', 'Bollinger Bands', 'Exponential Moving Averages (EMA)', 'Stochastic Oscillator', 'ADX', 'Ichimoku Cloud', 'Engulfing Pattern'))
+# Select cryptocurrency
+symbol = st.selectbox('Select Cryptocurrency', ('btc-usd', 'eth-usd', 'ltc-usd', 'doge-usd'))
+st.write(f'Selected cryptocurrency: {symbol}')
 
-    # Fetch data
-    df = fetch_data(symbol)
-    
-    # Plot candlestick chart
-    st.title(f'{symbol.upper()} Analysis')
-    st.plotly_chart(plot_candlestick_chart(df))
-    
-    # Perform technical analysis
-    st.subheader('Technical Analysis')
-    analysis_chart, recommendation = perform_technical_analysis(df.copy(), analysis_type)
-    st.plotly_chart(analysis_chart)
-    st.write(recommendation)
+# Select technical analysis type
+analysis_type = st.sidebar.selectbox('Select Technical Analysis Type', ('Moving Averages', 'RSI', 'MACD', 'Bollinger Bands', 'Exponential Moving Averages (EMA)', 'Stochastic Oscillator', 'ADX (Average Directional Index)', 'Ichimoku Cloud', 'Engulfing Pattern'))
 
-    # Load and use models for prediction
-    models = load_models()
-    if symbol in models:
-        model = models[symbol]
-        st.subheader('Machine Learning Prediction')
-        try:
-            # Assuming df has the necessary features for the model to predict
-            prediction = model.predict(df.tail(1))  # Predict using the latest data row
-            st.write(f'Prediction: {prediction[0]}')
-        except Exception as e:
-            st.error(f"Error making prediction: {e}")
-    else:
-        st.warning(f"No model available for {symbol}")
+# Fetch data
+df = fetch_data(symbol)
+st.write(f'Data for {symbol}')
 
-if __name__ == "__main__":
-    main()
+# Plot candlestick chart
+candlestick_chart = plot_candlestick_chart(df)
+st.plotly_chart(candlestick_chart)
+
+# Perform technical analysis
+technical_analysis_fig, recommendation = perform_technical_analysis(df, analysis_type)
+st.plotly_chart(technical_analysis_fig)
+st.write(f'Recommendation: {recommendation}')
+
+# Load models
+model_urls = {
+    'btc-usd': 'https://github.com/I-r-a-j/crypto_analysis/blob/main/btc_model.pkl',
+    'eth-usd': 'https://github.com/I-r-a-j/crypto_analysis/blob/main/eth_model.pkl',
+    'ltc-usd': 'https://github.com/I-r-a-j/crypto_analysis/blob/main/ltc_model.pkl',
+    'doge-usd': 'https://github.com/I-r-a-j/crypto_analysis/blob/main/doge_model.pkl'
+}
+
+# Load the selected model
+model_url = model_urls.get(symbol)
+model = joblib.load(model_url)
+
+# Use the model for predictions (assuming you have a function to prepare input data and make predictions)
+def prepare_input_data(df):
+    # Prepare input data for the model here
+    # Example: selecting features, scaling, etc.
+    # For demonstration, we will use the latest close price
+    input_data = df[['Close']].iloc[-1].values.reshape(1, -1)
+    return input_data
+
+input_data = prepare_input_data(df)
+prediction = model.predict(input_data)
+
+# Display the prediction
+st.write(f'Prediction for {symbol}: {prediction[0]}')
+
