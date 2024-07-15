@@ -4,5 +4,4 @@ pandas
 plotly
 matplotlib
 requests
-pickle
 numpy
