@@ -6,4 +6,4 @@ matplotlib
 joblib
 requests
 pickle
-urllib.error
+numpy
