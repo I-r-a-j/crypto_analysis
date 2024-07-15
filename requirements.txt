@@ -5,4 +5,5 @@ plotly
 matplotlib
 requests
 numpy
-urllib
+scipy
+scikit-learn
