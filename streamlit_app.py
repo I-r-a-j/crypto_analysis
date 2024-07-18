@@ -199,13 +199,13 @@ if selected_symbol == 'btc-usd':
     # Add a plot to show the actual prices and the prediction
     fig = go.Figure()
     fig.add_trace(go.Scatter(x=data['Date'], y=data['Close'], mode='lines', name='Actual Close'))
-    fig.add_trace(go.Scatter(x=[data['Date'].iloc[-1], data['Date'].iloc[-1] + pd.Timedelta(days=1)], 
+    fig.add_trace(go.Scatter(x=[data['Date'].iloc[-1], pd.to_datetime(data['Date'].iloc[-1]) + pd.Timedelta(days=1)], 
                              y=[data['Close'].iloc[-1], prediction], mode='lines', name='Prediction'))
     fig.update_layout(title='Actual Close Prices and Prediction', xaxis_title='Date', yaxis_title='Price')
     st.plotly_chart(fig)
 else:
     st.write("Price prediction is only available for BTC-USD.")
-
+    
 # Fetch data for selected symbol
 data = fetch_data(selected_symbol)
 # Display candlestick chart
