@@ -1,7 +1,6 @@
-streamlit
-yfinance
-pandas
-plotly
-joblib
-requests
-io
+streamlit==1.10.0
+yfinance==0.1.69
+pandas==1.3.3
+plotly==5.3.1
+joblib==1.1.0
+requests==2.26.0
