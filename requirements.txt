@@ -3,8 +3,6 @@ yfinance
 pandas
 plotly
 matplotlib
-requests
-numpy
-scipy
-scikit-learn
 joblib
+requests
+TA-Lib
