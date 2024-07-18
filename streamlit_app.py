@@ -8,6 +8,7 @@ def fetch_data(symbol, period='5y'):
     df = yf.download(symbol, period=period, progress=False)
     df.reset_index(inplace=True)
     return df
+    
 # Plot candlestick chart function
 def plot_candlestick_chart(df):
     fig = go.Figure(data=[go.Candlestick(x=df['Date'],
@@ -17,6 +18,7 @@ def plot_candlestick_chart(df):
                                          close=df['Close'])])
     fig.update_layout(title='Candlestick Chart', xaxis_title='Date', yaxis_title='Price')
     return fig
+    
 # Perform technical analysis function
 def perform_technical_analysis(df, analysis_type):
     df.set_index('Date', inplace=True)
@@ -160,6 +162,7 @@ def perform_technical_analysis(df, analysis_type):
             recommendation = "The Ichimoku Cloud indicates a **neutral** recommendation."
     
     return fig, recommendation
+    
 # Streamlit app
 st.title("Cryptocurrency Analysis Dashboard")
 # Sidebar options
@@ -171,6 +174,7 @@ technical_analysis_type = st.sidebar.selectbox('Select Technical Analysis Type',
                                                 'Exponential Moving Averages (EMA)', 
                                                 'Stochastic Oscillator', 
                                                 'Ichimoku Cloud'])
+
 # Fetch data for selected symbol
 data = fetch_data(selected_symbol)
 # Display candlestick chart
