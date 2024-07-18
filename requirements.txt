@@ -6,3 +6,4 @@ matplotlib
 joblib
 requests
 io
+sktime
