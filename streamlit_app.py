@@ -2,12 +2,23 @@ import streamlit as st
 import yfinance as yf
 import pandas as pd
 import plotly.graph_objs as go
+import joblib
+import requests
+from io import BytesIO
+
+# Load the model
+def load_model():
+    url = "https://github.com/I-r-a-j/crypto_analysis/blob/main/btc_simple_model.pkl?raw=true"
+    response = requests.get(url)
+    model = joblib.load(BytesIO(response.content))
+    return model
 
 # Fetch data function with progress disabled
 def fetch_data(symbol, period='5y'):
     df = yf.download(symbol, period=period, progress=False)
     df.reset_index(inplace=True)
     return df
+
 # Plot candlestick chart function
 def plot_candlestick_chart(df):
     fig = go.Figure(data=[go.Candlestick(x=df['Date'],
@@ -17,6 +28,7 @@ def plot_candlestick_chart(df):
                                          close=df['Close'])])
     fig.update_layout(title='Candlestick Chart', xaxis_title='Date', yaxis_title='Price')
     return fig
+
 # Perform technical analysis function
 def perform_technical_analysis(df, analysis_type):
     df.set_index('Date', inplace=True)
@@ -124,60 +136,49 @@ def perform_technical_analysis(df, analysis_type):
         fig.add_trace(go.Scatter(x=df.index, y=df['%K'], mode='lines', name='%K'))
         fig.add_trace(go.Scatter(x=df.index, y=df['%D'], mode='lines', name='%D'))
         fig.update_layout(title='Stochastic Oscillator', xaxis_title='Date', yaxis_title='Value')
-        fig.add_hline(y=80, line_dash="dash", line_color="red", annotation_text="Overbought")
-        fig.add_hline(y=20, line_dash="dash", line_color="green", annotation_text="Oversold")
         latest_k = df['%K'].iloc[-1]
         latest_d = df['%D'].iloc[-1]
-        if latest_k > 80:
-            recommendation = "The Stochastic Oscillator indicates the asset is **overbought**. Consider selling."
-        elif latest_k < 20:
-            recommendation = "The Stochastic Oscillator indicates the asset is **oversold**. Consider buying."
+        if latest_k > 80 and latest_d > 80:
+            recommendation = "The Stochastic Oscillator signal indicates the asset is **overbought**. Consider selling."
+        elif latest_k < 20 and latest_d < 20:
+            recommendation = "The Stochastic Oscillator signal indicates the asset is **oversold**. Consider buying."
         else:
-            recommendation = "The Stochastic Oscillator indicates the asset is **neutral**. No clear action recommended."
-   
-    elif analysis_type == 'Ichimoku Cloud':
-        df['Tenkan-sen'] = (df['High'].rolling(window=9).max() + df['Low'].rolling(window=9).min()) / 2
-        df['Kijun-sen'] = (df['High'].rolling(window=26).max() + df['Low'].rolling(window=26).min()) / 2
-        df['Senkou Span A'] = ((df['Tenkan-sen'] + df['Kijun-sen']) / 2).shift(26)
-        df['Senkou Span B'] = ((df['High'].rolling(window=52).max() + df['Low'].rolling(window=52).min()) / 2).shift(26)
-        df['Chikou Span'] = df['Close'].shift(-26)
-        fig = go.Figure()
-        fig.add_trace(go.Scatter(x=df.index, y=df['Close'], mode='lines', name='Close'))
-        fig.add_trace(go.Scatter(x=df.index, y=df['Tenkan-sen'], mode='lines', name='Tenkan-sen'))
-        fig.add_trace(go.Scatter(x=df.index, y=df['Kijun-sen'], mode='lines', name='Kijun-sen'))
-        fig.add_trace(go.Scatter(x=df.index, y=df['Senkou Span A'], mode='lines', fill='tonexty', name='Senkou Span A'))
-        fig.add_trace(go.Scatter(x=df.index, y=df['Senkou Span B'], mode='lines', fill='tonexty', name='Senkou Span B'))
-        fig.add_trace(go.Scatter(x=df.index, y=df['Chikou Span'], mode='lines', name='Chikou Span'))
-        fig.update_layout(title='Ichimoku Cloud', xaxis_title='Date', yaxis_title='Price')
-        latest_close = df['Close'].iloc[-1]
-        latest_span_a = df['Senkou Span A'].iloc[-1]
-        latest_span_b = df['Senkou Span B'].iloc[-1]
-        if latest_close > latest_span_a and latest_close > latest_span_b:
-            recommendation = "The Ichimoku Cloud indicates a **strong buy** recommendation."
-        elif latest_close < latest_span_a and latest_close < latest_span_b:
-            recommendation = "The Ichimoku Cloud indicates a **strong sell** recommendation."
-        else:
-            recommendation = "The Ichimoku Cloud indicates a **neutral** recommendation."
-    
+            recommendation = "The Stochastic Oscillator signal indicates the asset is **neutral**. No clear action recommended."
     return fig, recommendation
+
+# Make predictions with the loaded model
+def make_predictions(model, df):
+    features = df[['Open', 'High', 'Low', 'Close', 'Volume']]
+    predictions = model.predict(features)
+    return predictions
+
 # Streamlit app
-st.title("Cryptocurrency Analysis Dashboard")
-# Sidebar options
-st.sidebar.title("Options")
-symbols = ['btc-usd', 'eth-usd', 'ltc-usd', 'doge-usd']
-selected_symbol = st.sidebar.selectbox('Select Cryptocurrency', symbols)
-technical_analysis_type = st.sidebar.selectbox('Select Technical Analysis Type', 
-                                               ['Moving Averages', 'RSI', 'MACD', 'Bollinger Bands', 
-                                                'Exponential Moving Averages (EMA)', 
-                                                'Stochastic Oscillator', 
-                                                'Ichimoku Cloud'])
-# Fetch data for selected symbol
-data = fetch_data(selected_symbol)
-# Display candlestick chart
-st.subheader(f"{selected_symbol.upper()} Candlestick Chart")
-st.plotly_chart(plot_candlestick_chart(data))
-# Perform selected technical analysis
-st.subheader(f"{selected_symbol.upper()} {technical_analysis_type} Analysis")
-analysis_fig, recommendation = perform_technical_analysis(data, technical_analysis_type)
-st.plotly_chart(analysis_fig)
-st.markdown(recommendation)
+def main():
+    st.title("Cryptocurrency Analysis and Forecasting")
+    
+    # Load the model
+    model = load_model()
+    
+    # User input for symbol and period
+    symbol = st.text_input("Enter the cryptocurrency symbol (e.g., BTC-USD):", "BTC-USD")
+    period = st.selectbox("Select the period for data:", ['1mo', '3mo', '6mo', '1y', '2y', '5y', '10y'])
+
+    if st.button("Fetch Data"):
+        df = fetch_data(symbol, period)
+        st.write(df)
+        fig = plot_candlestick_chart(df)
+        st.plotly_chart(fig)
+
+        analysis_type = st.selectbox("Select the type of analysis:", 
+                                     ['Moving Averages', 'RSI', 'MACD', 'Bollinger Bands', 'Exponential Moving Averages (EMA)', 'Stochastic Oscillator'])
+        if st.button("Perform Analysis"):
+            analysis_fig, recommendation = perform_technical_analysis(df, analysis_type)
+            st.plotly_chart(analysis_fig)
+            st.write(recommendation)
+
+        if st.button("Make Predictions"):
+            predictions = make_predictions(model, df)
+            st.write("Predictions:", predictions)
+
+if __name__ == "__main__":
+    main()
