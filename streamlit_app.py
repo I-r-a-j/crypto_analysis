@@ -3,6 +3,8 @@ import yfinance as yf
 import pandas as pd
 import plotly.graph_objs as go
 from io import BytesIO
+import requests
+import joblib
 
 # Fetch data function with progress disabled
 def fetch_data(symbol, period='5y'):
@@ -190,7 +192,19 @@ technical_analysis_type = st.sidebar.selectbox('Select Technical Analysis Type',
                                                 'Stochastic Oscillator', 
                                                 'Ichimoku Cloud'])
 
-#load and predict model
+    
+# Fetch data for selected symbol
+data = fetch_data(selected_symbol)
+# Display candlestick chart
+st.subheader(f"{selected_symbol.upper()} Candlestick Chart")
+st.plotly_chart(plot_candlestick_chart(data))
+# Perform selected technical analysis
+st.subheader(f"{selected_symbol.upper()} {technical_analysis_type} Analysis")
+analysis_fig, recommendation = perform_technical_analysis(data, technical_analysis_type)
+st.plotly_chart(analysis_fig)
+st.markdown(recommendation)
+
+# Load and predict model
 if selected_symbol == 'btc-usd':
     st.subheader("Price Prediction")
     prediction = load_model_and_predict(data)
@@ -205,14 +219,3 @@ if selected_symbol == 'btc-usd':
     st.plotly_chart(fig)
 else:
     st.write("Price prediction is only available for BTC-USD.")
-    
-# Fetch data for selected symbol
-data = fetch_data(selected_symbol)
-# Display candlestick chart
-st.subheader(f"{selected_symbol.upper()} Candlestick Chart")
-st.plotly_chart(plot_candlestick_chart(data))
-# Perform selected technical analysis
-st.subheader(f"{selected_symbol.upper()} {technical_analysis_type} Analysis")
-analysis_fig, recommendation = perform_technical_analysis(data, technical_analysis_type)
-st.plotly_chart(analysis_fig)
-st.markdown(recommendation)
