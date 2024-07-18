@@ -5,5 +5,3 @@ plotly
 joblib
 requests
 io
-sktime
-sklearn
