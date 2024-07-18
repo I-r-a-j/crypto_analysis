@@ -2,12 +2,30 @@ import streamlit as st
 import yfinance as yf
 import pandas as pd
 import plotly.graph_objs as go
+from io import BytesIO
 
 # Fetch data function with progress disabled
 def fetch_data(symbol, period='5y'):
     df = yf.download(symbol, period=period, progress=False)
     df.reset_index(inplace=True)
     return df
+
+#load and predict model
+def load_model_and_predict(data):
+    # Load the model from GitHub
+    url = "https://github.com/I-r-a-j/crypto_analysis/raw/main/btc_simple_model.pkl"
+    response = requests.get(url)
+    model = joblib.load(BytesIO(response.content))
+    
+    # Prepare the data for prediction
+    features = ['Open', 'High', 'Low', 'Close', 'Volume']
+    X = data[features].iloc[-1].values.reshape(1, -1)  # Use the latest data point
+    
+    # Make prediction
+    prediction = model.predict(X)[0]
+    
+    return prediction
+    
 # Plot candlestick chart function
 def plot_candlestick_chart(df):
     fig = go.Figure(data=[go.Candlestick(x=df['Date'],
@@ -171,6 +189,23 @@ technical_analysis_type = st.sidebar.selectbox('Select Technical Analysis Type',
                                                 'Exponential Moving Averages (EMA)', 
                                                 'Stochastic Oscillator', 
                                                 'Ichimoku Cloud'])
+
+#load and predict model
+if selected_symbol == 'btc-usd':
+    st.subheader("Price Prediction")
+    prediction = load_model_and_predict(data)
+    st.write(f"Predicted price for the next period: ${prediction:.2f}")
+
+    # Add a plot to show the actual prices and the prediction
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(x=data['Date'], y=data['Close'], mode='lines', name='Actual Close'))
+    fig.add_trace(go.Scatter(x=[data['Date'].iloc[-1], data['Date'].iloc[-1] + pd.Timedelta(days=1)], 
+                             y=[data['Close'].iloc[-1], prediction], mode='lines', name='Prediction'))
+    fig.update_layout(title='Actual Close Prices and Prediction', xaxis_title='Date', yaxis_title='Price')
+    st.plotly_chart(fig)
+else:
+    st.write("Price prediction is only available for BTC-USD.")
+
 # Fetch data for selected symbol
 data = fetch_data(selected_symbol)
 # Display candlestick chart
