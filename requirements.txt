@@ -2,5 +2,5 @@ streamlit
 yfinance
 pandas
 plotly
-
+pickle
 
