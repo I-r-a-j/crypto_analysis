@@ -188,5 +188,15 @@ st.plotly_chart(analysis_fig)
 st.markdown(recommendation)
 
 #load ML model
-model = pickle.load(open('btc_simple_model.pkl', 'rb'))
-model.predict()
+with open('btc_model.pkl', 'rb') as f:
+    btc_model = pickle.load(f)
+
+# After fetching data, use btc_model to make predictions (if selected symbol is BTC)
+if selected_symbol == 'btc-usd':
+    # Assuming 'Close' prices are used for predictions
+    df['Prediction'] = btc_model.predict(df[['Close']])  # Adjust input features as needed
+
+if 'Prediction' in df.columns:
+    st.write("BTC Model Prediction for the latest data:")
+    st.write(df[['Date', 'Close', 'Prediction']].tail())
+
