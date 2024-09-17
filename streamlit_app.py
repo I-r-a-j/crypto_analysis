@@ -2,14 +2,12 @@ import streamlit as st
 import yfinance as yf
 import pandas as pd
 import plotly.graph_objs as go
-import joblib
-
 # Fetch data function with progress disabled
 def fetch_data(symbol, period='5y'):
     df = yf.download(symbol, period=period, progress=False)
     df.reset_index(inplace=True)
     return df
-    
+
 # Plot candlestick chart function
 def plot_candlestick_chart(df):
     fig = go.Figure(data=[go.Candlestick(x=df['Date'],
@@ -19,7 +17,7 @@ def plot_candlestick_chart(df):
                                          close=df['Close'])])
     fig.update_layout(title='Candlestick Chart', xaxis_title='Date', yaxis_title='Price')
     return fig
-    
+
 # Perform technical analysis function
 def perform_technical_analysis(df, analysis_type):
     df.set_index('Date', inplace=True)
@@ -161,9 +159,9 @@ def perform_technical_analysis(df, analysis_type):
             recommendation = "The Ichimoku Cloud indicates a **strong sell** recommendation."
         else:
             recommendation = "The Ichimoku Cloud indicates a **neutral** recommendation."
-    
+
     return fig, recommendation
-    
+
 # Streamlit app
 st.title("Cryptocurrency Analysis Dashboard")
 # Sidebar options
@@ -186,47 +184,3 @@ st.subheader(f"{selected_symbol.upper()} {technical_analysis_type} Analysis")
 analysis_fig, recommendation = perform_technical_analysis(data, technical_analysis_type)
 st.plotly_chart(analysis_fig)
 st.markdown(recommendation)
-
-#load ML model
-# Load your model
-model_path = "btc_simple_model.pkl"
-
-@st.cache_resource
-def load_model(path):
-    return joblib.load(path)
-
-# Load the model only once and reuse it
-btc_model = load_model(model_path)
-
-# UI for user input
-st.title("Bitcoin Price Prediction")
-
-# Allow the user to select a cryptocurrency and timeframe
-st.sidebar.subheader("Select Cryptocurrency and Timeframe")
-crypto_symbol = st.sidebar.selectbox("Select cryptocurrency", ['BTC-USD'])
-start_date = st.sidebar.date_input("Start date", pd.to_datetime("2022-01-01"))
-end_date = st.sidebar.date_input("End date", pd.to_datetime("today"))
-
-# Download cryptocurrency data using yfinance
-@st.cache_data
-def download_crypto_data(symbol, start, end):
-    df = yf.download(symbol, start=start, end=end)
-    return df
-
-# Display cryptocurrency data
-crypto_data = download_crypto_data(crypto_symbol, start_date, end_date)
-st.write("### Cryptocurrency Data", crypto_data)
-
-# Make predictions using the loaded model
-if st.sidebar.button("Predict"):
-    # Assuming your model requires specific features for prediction
-    # Prepare the features accordingly (modify as per your model's requirements)
-    X = crypto_data[['Open', 'High', 'Low', 'Close', 'Volume']]  # example features
-
-    # Making predictions (adjust the model input/output as needed)
-    predictions = btc_model.predict(X)
-
-    # Display the predictions
-    st.write("### Model Predictions")
-    st.write(predictions)
-
