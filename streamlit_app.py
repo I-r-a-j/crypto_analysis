@@ -2,7 +2,7 @@ import streamlit as st
 import yfinance as yf
 import pandas as pd
 import plotly.graph_objs as go
-import pickle
+import joblib
 
 # Fetch data function with progress disabled
 def fetch_data(symbol, period='5y'):
@@ -188,15 +188,45 @@ st.plotly_chart(analysis_fig)
 st.markdown(recommendation)
 
 #load ML model
-with open('btc_model.pkl', 'rb') as f:
-    btc_model = pickle.load(f)
+# Load your model
+model_path = "btc_simple_model.pkl"
 
-# After fetching data, use btc_model to make predictions (if selected symbol is BTC)
-if selected_symbol == 'btc-usd':
-    # Assuming 'Close' prices are used for predictions
-    df['Prediction'] = btc_model.predict(df[['Close']])  # Adjust input features as needed
+@st.cache_resource
+def load_model(path):
+    return joblib.load(path)
 
-if 'Prediction' in df.columns:
-    st.write("BTC Model Prediction for the latest data:")
-    st.write(df[['Date', 'Close', 'Prediction']].tail())
+# Load the model only once and reuse it
+btc_model = load_model(model_path)
+
+# UI for user input
+st.title("Bitcoin Price Prediction")
+
+# Allow the user to select a cryptocurrency and timeframe
+st.sidebar.subheader("Select Cryptocurrency and Timeframe")
+crypto_symbol = st.sidebar.selectbox("Select cryptocurrency", ['BTC-USD'])
+start_date = st.sidebar.date_input("Start date", pd.to_datetime("2022-01-01"))
+end_date = st.sidebar.date_input("End date", pd.to_datetime("today"))
+
+# Download cryptocurrency data using yfinance
+@st.cache_data
+def download_crypto_data(symbol, start, end):
+    df = yf.download(symbol, start=start, end=end)
+    return df
+
+# Display cryptocurrency data
+crypto_data = download_crypto_data(crypto_symbol, start_date, end_date)
+st.write("### Cryptocurrency Data", crypto_data)
+
+# Make predictions using the loaded model
+if st.sidebar.button("Predict"):
+    # Assuming your model requires specific features for prediction
+    # Prepare the features accordingly (modify as per your model's requirements)
+    X = crypto_data[['Open', 'High', 'Low', 'Close', 'Volume']]  # example features
+
+    # Making predictions (adjust the model input/output as needed)
+    predictions = btc_model.predict(X)
+
+    # Display the predictions
+    st.write("### Model Predictions")
+    st.write(predictions)
 
