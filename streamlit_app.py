@@ -189,4 +189,4 @@ st.markdown(recommendation)
 
 #load ML model
 model = pickle.load(open('btc_simple_model.pkl', 'rb'))
-model.predict(input_X)
+model.predict()
