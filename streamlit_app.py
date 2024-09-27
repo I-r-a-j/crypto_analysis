@@ -2,6 +2,8 @@ import streamlit as st
 import yfinance as yf
 import pandas as pd
 import plotly.graph_objs as go
+import pickle
+
 # Fetch data function with progress disabled
 def fetch_data(symbol, period='5y'):
     df = yf.download(symbol, period=period, progress=False)
@@ -184,3 +186,7 @@ st.subheader(f"{selected_symbol.upper()} {technical_analysis_type} Analysis")
 analysis_fig, recommendation = perform_technical_analysis(data, technical_analysis_type)
 st.plotly_chart(analysis_fig)
 st.markdown(recommendation)
+
+#add ML model via pickle
+with open('btc_symple_model.pkl', 'rb') as pickle_in:
+btc_model = pickle.load(pickle_in)
