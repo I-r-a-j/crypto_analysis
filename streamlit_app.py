@@ -2,7 +2,8 @@ import streamlit as st
 import yfinance as yf
 import pandas as pd
 import plotly.graph_objs as go
-
+import pycaret.regression as pycr
+import os
 
 # Fetch data function with progress disabled
 def fetch_data(symbol, period='5y'):
@@ -188,3 +189,24 @@ st.plotly_chart(analysis_fig)
 st.markdown(recommendation)
 
 
+# Load machine learning model
+model_path = 'btc_simple_model.pkl'
+if os.path.exists(model_path):
+    model = pycr.load_model(model_path)
+else:
+    st.error("Model not found. Please check the path or the GitHub repo.")
+
+# Make predictions using the model
+def predict_with_model(df):
+    prediction_df = df[['Open', 'High', 'Low', 'Close']]  # Adjust as per model features
+    predictions = pycr.predict_model(model, data=prediction_df)
+    return predictions['Label']
+
+# Add prediction results to the app
+if selected_symbol == 'btc-usd':
+    df = fetch_data(selected_symbol)
+    predictions = predict_with_model(df)
+    df['Predictions'] = predictions
+
+    st.subheader("Predicted Close Prices")
+    st.line_chart(df[['Date', 'Close', 'Predictions']].set_index('Date'))
