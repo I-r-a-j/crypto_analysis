@@ -2,3 +2,5 @@ streamlit
 yfinance
 pandas
 plotly
+os
+pycaret[full]
