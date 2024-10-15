@@ -28,17 +28,20 @@ pickle
 pycoingecko
 
 *Clone the Repository*
+
 bash
 Copy code
 git clone https://github.com/your-username/crypto-analysis.git
 cd crypto-analysis
 
 *Install Dependencies*
+
 bash
 Copy code
 pip install -r requirements.txt
 
 *Run the App*
+
 bash
 Copy code
 streamlit run app.py
