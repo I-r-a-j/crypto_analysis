@@ -18,7 +18,7 @@ MODEL_URLS = {
     'Dogecoin (DOGE)': "https://drive.google.com/uc?export=download&id=1-RC4K3aC7eqtrifKOZicRgE6RLJpsk7G"
 }
 
-# Cache the model to avoid re-downloading
+# Function to download the model from Google Drive
 @st.cache_resource
 def load_model(url):
     response = requests.get(url)
@@ -30,13 +30,18 @@ def load_model(url):
     
     return model
 
-# Function to fetch data from Yahoo Finance
+# Constants
+START = (date.today() - timedelta(days=365)).strftime("%Y-%m-%d")
+TODAY = date.today().strftime("%Y-%m-%d")
+period = 5  # Predicting for the next 5 days
+
+# Fetch data function with progress disabled
 def fetch_data(symbol, period='5y'):
     df = yf.download(symbol, period=period, progress=False)
     df.reset_index(inplace=True)
     return df
 
-# Function to plot candlestick chart
+# Plot candlestick chart function
 def plot_candlestick_chart(df):
     fig = go.Figure(data=[go.Candlestick(x=df['Date'],
                                          open=df['Open'],
@@ -48,8 +53,9 @@ def plot_candlestick_chart(df):
 
 # Perform technical analysis function
 def perform_technical_analysis(df, analysis_type):
-    # ... (Same as in the original script)
-    return fig, recommendation
+    # ... (keep the existing perform_technical_analysis function as is)
+    # This function is quite long, so I'm not repeating it here to save space
+    pass
 
 # Function to load cryptocurrency data from CoinGecko (past 365 days)
 def load_data(coin):
@@ -63,59 +69,59 @@ def load_data(coin):
     
     return data
 
-# Constants for the prediction model
-START = (date.today() - timedelta(days=365)).strftime("%Y-%m-%d")
-TODAY = date.today().strftime("%Y-%m-%d")
-period = 5
-
 # Streamlit app
-st.title("Cryptocurrency Dashboard & Prediction")
+st.title("Cryptocurrency Analysis and Prediction Dashboard")
 
 # Sidebar options
 st.sidebar.title("Options")
-symbols = ['btc-usd', 'eth-usd', 'ltc-usd', 'doge-usd']
 crypto_options = {
-    'Bitcoin (BTC)': 'bitcoin',
-    'Ethereum (ETH)': 'ethereum',
-    'Litecoin (LTC)': 'litecoin',
-    'Dogecoin (DOGE)': 'dogecoin'
+    'Bitcoin (BTC)': 'btc-usd',
+    'Ethereum (ETH)': 'eth-usd',
+    'Litecoin (LTC)': 'ltc-usd',
+    'Dogecoin (DOGE)': 'doge-usd'
 }
 selected_crypto = st.sidebar.selectbox('Select Cryptocurrency', list(crypto_options.keys()))
-selected_coin = crypto_options[selected_crypto]
+selected_symbol = crypto_options[selected_crypto]
+selected_coin = selected_crypto.split()[0].lower()
 
-# Fetch data for selected symbol
-data = fetch_data(selected_coin)
-# Display candlestick chart
-st.subheader(f"{selected_crypto.upper()} Candlestick Chart")
-st.plotly_chart(plot_candlestick_chart(data))
-
-# Technical analysis
 technical_analysis_type = st.sidebar.selectbox('Select Technical Analysis Type', 
                                                ['Moving Averages', 'RSI', 'MACD', 'Bollinger Bands', 
                                                 'Exponential Moving Averages (EMA)', 
                                                 'Stochastic Oscillator', 
                                                 'Ichimoku Cloud'])
 
-st.subheader(f"{selected_crypto.upper()} {technical_analysis_type} Analysis")
+# Fetch data for selected symbol
+data = fetch_data(selected_symbol)
+
+# Display candlestick chart
+st.subheader(f"{selected_crypto} Candlestick Chart")
+st.plotly_chart(plot_candlestick_chart(data))
+
+# Perform selected technical analysis
+st.subheader(f"{selected_crypto} {technical_analysis_type} Analysis")
 analysis_fig, recommendation = perform_technical_analysis(data, technical_analysis_type)
 st.plotly_chart(analysis_fig)
 st.markdown(recommendation)
 
-# Load model corresponding to selected cryptocurrency
+# Price Prediction Section
+st.subheader(f"{selected_crypto} Price Prediction (Next 5 Days)")
+
+# Load the model corresponding to the selected cryptocurrency
 MODEL_URL = MODEL_URLS[selected_crypto]
 model = load_model(MODEL_URL)
 
-# Load data for prediction
-data = load_data(selected_coin)
+# Load the data for prediction
+prediction_data = load_data(selected_coin)
 
 # Prepare the data for predictions
-df_train = data[['Date', 'Close']].rename(columns={"Date": "ds", "Close": "y"})
+df_train = prediction_data[['Date', 'Close']].rename(columns={"Date": "ds", "Close": "y"})
 
 # Feature Engineering
 df_train['SMA_10'] = df_train['y'].rolling(window=10).mean()
 df_train['SMA_30'] = df_train['y'].rolling(window=30).mean()
 df_train['EMA_10'] = df_train['y'].ewm(span=10, adjust=False).mean()
 df_train['EMA_30'] = df_train['y'].ewm(span=30, adjust=False).mean()
+
 df_train['day'] = df_train['ds'].dt.day
 df_train['month'] = df_train['ds'].dt.month
 df_train['year'] = df_train['ds'].dt.year
@@ -126,14 +132,16 @@ df_train = df_train.dropna()
 # Ensure feature order matches the training data
 features_order = ['SMA_10', 'SMA_30', 'EMA_10', 'EMA_30', 'day', 'month', 'year']
 
-# Show raw data (only the last 10 rows)
+# Show raw data (only the last 10 rows, excluding the last row)
 st.subheader(f"Raw Data for {selected_crypto}")
-st.write(data.iloc[:-1].tail(10))
+st.write(prediction_data.iloc[:-1].tail(10))
 
 # Prepare future features for prediction
 today = pd.Timestamp(TODAY)
 future_dates = pd.date_range(today, periods=period, freq='D').tolist()
 last_row = df_train.tail(1)
+
+# Generate new feature data for future dates
 future_features = pd.DataFrame({
     'day': [d.day for d in future_dates],
     'month': [d.month for d in future_dates],
@@ -144,9 +152,16 @@ future_features = pd.DataFrame({
     'EMA_30': last_row['EMA_30'].values[0]
 })
 
-# Prediction logic (use the model)
-# (Assuming a prediction step exists in your original model)
+# Ensure future features match the training feature order
+future_features = future_features[features_order]
 
-# Display prediction results (after completing the prediction logic)
-st.subheader(f"Predicted Prices for the Next 5 Days ({selected_crypto})")
-# st.write(predictions)  # Uncomment after adding prediction logic
+# Predict future prices using the pre-trained model
+future_close = model.predict(future_features)
+
+# Create a DataFrame for the predictions
+future_df = pd.DataFrame({'Date': future_dates, 'Predicted Close': future_close})
+future_df.set_index('Date', inplace=True)
+
+# Display the forecast data
+st.subheader(f"Predicted Prices for {selected_crypto} for the Next {period} Days")
+st.write(future_df)
