@@ -2,3 +2,6 @@ streamlit
 yfinance
 pandas
 plotly
+requests
+pickle
+pycoingecko
