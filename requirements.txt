@@ -3,6 +3,5 @@ yfinance
 pandas
 plotly
 requests
-pickle
 pycoingecko
 datetime
