@@ -1,3 +1,7 @@
+**Disclaimer**
+
+this porject is for demonstration only do not use it for actual trading.
+
 **Overview**
 
 Welcome to the Cryptocurrency Analysis Dashboard, a powerful Streamlit-based app for performing detailed technical analysis and price predictions for popular cryptocurrencies. This app allows users to view candlestick charts, apply technical indicators, and predict future prices for cryptocurrencies such as Bitcoin (BTC), Ethereum (ETH), Litecoin (LTC), and Dogecoin (DOGE).
