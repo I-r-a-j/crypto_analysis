@@ -2,7 +2,3 @@ streamlit
 yfinance
 pandas
 plotly
-requests
-pycoingecko
-datetime
-scikit-learn
