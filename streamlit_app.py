@@ -196,10 +196,10 @@ cg = CoinGeckoAPI()
 
 # Google Drive links for the models
 MODEL_URLS = {
-    'Bitcoin (BTC)': "https://drive.google.com/uc?export=download&id=1mD-tif0Cs9k0FxuKa7Mz8w0FNWe1z_EF",
-    'Ethereum (ETH)': "https://drive.google.com/uc?export=download&id=1r4bhxCw6S8YTcUr85xc-bzNwLlCTvn2A",
-    'Litecoin (LTC)': "https://drive.google.com/uc?export=download&id=1eGJVTER-cn2zlpTAaevC_9Gk6VNsEIb-",
-    'Dogecoin (DOGE)': "https://drive.google.com/uc?export=download&id=1dUQH7Uv4l69SXwIgtzV_Z9ogXiwE_mmJ"
+    'Bitcoin (BTC)': "https://drive.google.com/uc?export=download&id=15fpJ48AGZqoXSIr3kQHnCLvsg_be8D5r",
+    'Ethereum (ETH)': "https://drive.google.com/uc?export=download&id=1q5I7bwqVI8_J28HXPx4DwzqHjtdTSib0",
+    'Litecoin (LTC)': "https://drive.google.com/uc?export=download&id=1ay0MI8xoA2HGvhjDyRrhBoaTqSaLx7zv",
+    'Dogecoin (DOGE)': "https://drive.google.com/uc?export=download&id=1ImJH3OsLPGlgDsEyg1Hllih0J-T29WuC"
 }
 
 # Function to download the model from Google Drive
