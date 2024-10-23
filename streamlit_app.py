@@ -140,7 +140,7 @@ def perform_technical_analysis(df, analysis_type):
             recommendation = "The Stochastic Oscillator indicates the asset is **oversold**. Consider buying."
         else:
             recommendation = "The Stochastic Oscillator indicates the asset is **neutral**. No clear action recommended."
-   
+
     elif analysis_type == 'Ichimoku Cloud':
         df['Tenkan-sen'] = (df['High'].rolling(window=9).max() + df['Low'].rolling(window=9).min()) / 2
         df['Kijun-sen'] = (df['High'].rolling(window=26).max() + df['Low'].rolling(window=26).min()) / 2
@@ -196,10 +196,14 @@ cg = CoinGeckoAPI()
 
 # Google Drive links for the models
 MODEL_URLS = {
-    'Bitcoin (BTC)': "https://drive.google.com/uc?export=download&id=1mD-tif0Cs9k0FxuKa7Mz8w0FNWe1z_EF",
-    'Ethereum (ETH)': "https://drive.google.com/uc?export=download&id=1r4bhxCw6S8YTcUr85xc-bzNwLlCTvn2A",
-    'Litecoin (LTC)': "https://drive.google.com/uc?export=download&id=1eGJVTER-cn2zlpTAaevC_9Gk6VNsEIb-",
-    'Dogecoin (DOGE)': "https://drive.google.com/uc?export=download&id=1dUQH7Uv4l69SXwIgtzV_Z9ogXiwE_mmJ"
+    'Bitcoin (BTC)': "https://drive.google.com/uc?export=download&id=1-55iPtncWPsMzxDOHOsLNbv0snuQUTcJ",
+    'Ethereum (ETH)': "https://drive.google.com/uc?export=download&id=1-7QoFQThAweJnxmixjKSazFQXyN0FAU_",
+    'Litecoin (LTC)': "https://drive.google.com/uc?export=download&id=1-Ajon8ebaYzuI-TDLj14UziC0meqVTc-",
+    'Dogecoin (DOGE)': "https://drive.google.com/uc?export=download&id=1-RC4K3aC7eqtrifKOZicRgE6RLJpsk7G"
+    'Bitcoin (BTC)': "https://drive.google.com/uc?export=download&id=1IWz0bn02AMIuK-AcuIVkyJ589bZjraHh",
+    'Ethereum (ETH)': "https://drive.google.com/uc?export=download&id=1TlD8nxncxCAzWzjAJ508VksPETwdp71L",
+    'Litecoin (LTC)': "https://drive.google.com/uc?export=download&id=1viq1j3as_FKR8J-ddYPpOxDsvT-_q0hA",
+    'Dogecoin (DOGE)': "https://drive.google.com/uc?export=download&id=1JduM-DH42l92HvPrRrhRNXVJuYAChmKt"
 }
 
 # Function to download the model from Google Drive
@@ -208,10 +212,10 @@ def load_model(url):
     response = requests.get(url)
     with open("crypto_model.pkl", "wb") as file:
         file.write(response.content)
-    
+
     with open("crypto_model.pkl", "rb") as file:
         model = pickle.load(file)
-    
+
     return model
 
 # Constants
@@ -240,12 +244,12 @@ model = load_model(MODEL_URL)
 def load_data(coin):
     market_data = cg.get_coin_market_chart_by_id(id=coin, vs_currency='usd', days=365)
     prices = market_data['prices']
-    
+
     # Convert to DataFrame
     data = pd.DataFrame(prices, columns=['timestamp', 'Close'])
     data['Date'] = pd.to_datetime(data['timestamp'], unit='ms')  # Convert from timestamp to date
     data = data[['Date', 'Close']]
-    
+
     return data
 
 # Load the data
@@ -306,4 +310,4 @@ future_df.set_index('Date', inplace=True)
 
 # Display the forecast data
 st.subheader(f"Predicted Prices for {selected_crypto} for the Next {period} Days")
-st.write(future_df) 
+st.write(future_df)
