@@ -6,8 +6,17 @@ import plotly.graph_objs as go
 # Initialize CoinGecko API
 cg = CoinGeckoAPI()
 
+# Dictionary mapping display names to symbols
+cryptocurrency_map = {
+    'Bitcoin (BTC)': 'bitcoin',
+    'Ethereum (ETH)': 'ethereum',
+    'Litecoin (LTC)': 'litecoin',
+    'Dogecoin (DOGE)': 'dogecoin'
+}
+
 # Function to fetch cryptocurrency data
-def fetch_data(symbol, days='365'):  # Limited to 365 days for free API users
+def fetch_data(crypto_name, days='365'):  # Limited to 365 days for free API users
+    symbol = cryptocurrency_map[crypto_name]  # Get the symbol from the display name
     # Get market chart data for the selected cryptocurrency
     data = cg.get_coin_market_chart_by_id(id=symbol, vs_currency='usd', days=days)
     
@@ -99,15 +108,15 @@ def perform_technical_analysis(df, analysis_type):
 # Streamlit interface
 st.title('Cryptocurrency Price Analysis and Technical Indicators')
 
-# Dropdown menu to select cryptocurrency
-symbol = st.selectbox('Select Cryptocurrency', ['bitcoin', 'ethereum', 'litecoin', 'dogecoin'])
+# Dropdown menu to select cryptocurrency (universal names used)
+crypto_name = st.selectbox('Select Cryptocurrency', list(cryptocurrency_map.keys()))
 
 # Slider to select number of days within the free limit
 days = st.slider('Select number of days for historical data (max 365)', min_value=1, max_value=365, value=365)
 
 # Fetch and display candlestick chart
-df = fetch_data(symbol, str(days))
-st.write("Candlestick Chart")
+df = fetch_data(crypto_name, str(days))
+st.write(f"Candlestick Chart for {crypto_name}")
 st.plotly_chart(plot_candlestick_chart(df))
 
 # Technical analysis type
