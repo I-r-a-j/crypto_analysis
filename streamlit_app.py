@@ -2,10 +2,10 @@ import requests
 import pickle
 import streamlit as st
 import pandas as pd
+import numpy as np
 import plotly.graph_objs as go
 from datetime import date, timedelta
 from pycoingecko import CoinGeckoAPI
-from tradingview_ta import TA_Handler, Interval, Exchange  # TradingView technical analysis
 
 # Initialize CoinGecko API client
 cg = CoinGeckoAPI()
@@ -31,12 +31,12 @@ def load_model(url):
     return model
 
 # Constants
-START = (date.today() - timedelta(days=365)).strftime("%Y-%m-%d")  # Restrict to past year
+START = (date.today() - timedelta(days=365)).strftime("%Y-%m-%d")  # Past year
 TODAY = date.today().strftime("%Y-%m-%d")
 period = 5  # Predicting for the next 5 days
 
 # Streamlit UI
-st.title("Cryptocurrency Price Prediction & Analysis (Next 5 Days)")
+st.title("Cryptocurrency Price Prediction & Technical Analysis")
 
 # Dropdown for selecting cryptocurrency
 crypto_options = {
@@ -70,88 +70,126 @@ data = load_data(selected_coin)
 # Prepare the data for predictions
 df_train = data[['Date', 'Close']].rename(columns={"Date": "ds", "Close": "y"})
 
-# Feature Engineering
+# Show raw data (only the last 10 rows, excluding the last row)
+st.subheader(f"Raw Data for {selected_crypto}")
+st.write(data.iloc[:-1].tail(10))  # Exclude the last row and show the last 10 remaining rows
+
+# Feature Engineering (Simple Moving Average, Exponential Moving Average)
 df_train['SMA_10'] = df_train['y'].rolling(window=10).mean()  # 10-day Simple Moving Average
 df_train['SMA_30'] = df_train['y'].rolling(window=30).mean()  # 30-day Simple Moving Average
 df_train['EMA_10'] = df_train['y'].ewm(span=10, adjust=False).mean()  # 10-day Exponential Moving Average
 df_train['EMA_30'] = df_train['y'].ewm(span=30, adjust=False).mean()  # 30-day Exponential Moving Average
 
-df_train['day'] = df_train['ds'].dt.day
-df_train['month'] = df_train['ds'].dt.month
-df_train['year'] = df_train['ds'].dt.year
+# RSI Calculation
+def calculate_rsi(data, window=14):
+    delta = data.diff()
+    gain = np.where(delta > 0, delta, 0)
+    loss = np.where(delta < 0, abs(delta), 0)
+    avg_gain = pd.Series(gain).rolling(window=window, min_periods=1).mean()
+    avg_loss = pd.Series(loss).rolling(window=window, min_periods=1).mean()
+    rs = avg_gain / avg_loss
+    rsi = 100 - (100 / (1 + rs))
+    return rsi
 
-# Drop rows with NaN values
-df_train = df_train.dropna()
+df_train['RSI'] = calculate_rsi(df_train['y'])
 
-# Ensure feature order matches the training data
-features_order = ['SMA_10', 'SMA_30', 'EMA_10', 'EMA_30', 'day', 'month', 'year']
+# MACD Calculation
+def calculate_macd(data, slow=26, fast=12, signal=9):
+    ema_fast = data.ewm(span=fast, adjust=False).mean()
+    ema_slow = data.ewm(span=slow, adjust=False).mean()
+    macd = ema_fast - ema_slow
+    macd_signal = macd.ewm(span=signal, adjust=False).mean()
+    macd_histogram = macd - macd_signal
+    return macd, macd_signal, macd_histogram
 
-# Show raw data (only the last 10 rows, excluding the last row)
-st.subheader(f"Raw Data for {selected_crypto}")
-st.write(data.iloc[:-1].tail(10))  # Exclude the last row and show the last 10 remaining rows
+df_train['MACD'], df_train['MACD_Signal'], df_train['MACD_Histogram'] = calculate_macd(df_train['y'])
 
-# Prepare future features for prediction
-today = pd.Timestamp(TODAY)
+# Bollinger Bands Calculation
+def calculate_bollinger_bands(data, window=20, std_factor=2):
+    sma = data.rolling(window=window).mean()
+    std = data.rolling(window=window).std()
+    upper_band = sma + (std_factor * std)
+    lower_band = sma - (std_factor * std)
+    return upper_band, lower_band
 
-# Generate future dates starting from today (current date)
-future_dates = pd.date_range(today, periods=period, freq='D').tolist()
+df_train['Bollinger_Upper'], df_train['Bollinger_Lower'] = calculate_bollinger_bands(df_train['y'])
 
-# Use the most recent feature data for predictions (from the last row of df_train)
-last_row = df_train.tail(1)
+# Recommendations based on indicators
+def get_recommendation(df):
+    recommendations = {}
 
-# Generate new feature data for future dates (moving averages and date features)
-future_features = pd.DataFrame({
-    'day': [d.day for d in future_dates],
-    'month': [d.month for d in future_dates],
-    'year': [d.year for d in future_dates],
-    'SMA_10': last_row['SMA_10'].values[0],  # Last known SMA_10 value
-    'SMA_30': last_row['SMA_30'].values[0],  # Last known SMA_30 value
-    'EMA_10': last_row['EMA_10'].values[0],  # Last known EMA_10 value
-    'EMA_30': last_row['EMA_30'].values[0]   # Last known EMA_30 value
-})
+    # Simple Moving Averages (SMA)
+    if df['SMA_10'].iloc[-1] > df['SMA_30'].iloc[-1]:
+        recommendations['SMA'] = 'Buy'
+    else:
+        recommendations['SMA'] = 'Sell'
 
-# Ensure future features match the training feature order
-future_features = future_features[features_order]
+    # Exponential Moving Averages (EMA)
+    if df['EMA_10'].iloc[-1] > df['EMA_30'].iloc[-1]:
+        recommendations['EMA'] = 'Buy'
+    else:
+        recommendations['EMA'] = 'Sell'
 
-# Predict future prices using the pre-trained model
-future_close = model.predict(future_features)
+    # RSI
+    if df['RSI'].iloc[-1] < 30:
+        recommendations['RSI'] = 'Buy (Oversold)'
+    elif df['RSI'].iloc[-1] > 70:
+        recommendations['RSI'] = 'Sell (Overbought)'
+    else:
+        recommendations['RSI'] = 'Neutral'
 
-# Create a DataFrame for the predictions
-future_df = pd.DataFrame({'Date': future_dates, 'Predicted Close': future_close})
-future_df.set_index('Date', inplace=True)
+    # MACD
+    if df['MACD'].iloc[-1] > df['MACD_Signal'].iloc[-1]:
+        recommendations['MACD'] = 'Buy'
+    else:
+        recommendations['MACD'] = 'Sell'
 
-# Display the forecast data
-st.subheader(f"Predicted Prices for {selected_crypto} for the Next {period} Days")
-st.write(future_df)
+    return recommendations
 
-# Candlestick Chart for historical data
-st.subheader(f"Candlestick Chart for {selected_crypto}")
+# Get recommendations
+recommendations = get_recommendation(df_train)
 
-candlestick_data = cg.get_coin_market_chart_by_id(id=selected_coin, vs_currency='usd', days=30)
-candlestick_df = pd.DataFrame(candlestick_data['prices'], columns=['timestamp', 'Close'])
-candlestick_df['Date'] = pd.to_datetime(candlestick_df['timestamp'], unit='ms')
+# Display recommendations
+st.subheader(f"Technical Analysis Recommendations for {selected_crypto}")
+for indicator, recommendation in recommendations.items():
+    st.write(f"{indicator}: {recommendation}")
 
+# Plotting
+st.subheader(f"Technical Indicator Plots for {selected_crypto}")
+
+# Candlestick Chart
 fig = go.Figure(data=[go.Candlestick(
-    x=candlestick_df['Date'],
-    open=candlestick_df['Close'].shift(1),
-    high=candlestick_df['Close'].rolling(window=3).max(),
-    low=candlestick_df['Close'].rolling(window=3).min(),
-    close=candlestick_df['Close'],
+    x=df_train['ds'],
+    open=df_train['y'].shift(1),
+    high=df_train['y'].rolling(window=3).max(),
+    low=df_train['y'].rolling(window=3).min(),
+    close=df_train['y'],
     increasing_line_color='green', decreasing_line_color='red'
 )])
 
+# Plot Moving Averages
+fig.add_trace(go.Scatter(x=df_train['ds'], y=df_train['SMA_10'], mode='lines', name='SMA 10'))
+fig.add_trace(go.Scatter(x=df_train['ds'], y=df_train['SMA_30'], mode='lines', name='SMA 30'))
+fig.add_trace(go.Scatter(x=df_train['ds'], y=df_train['EMA_10'], mode='lines', name='EMA 10'))
+fig.add_trace(go.Scatter(x=df_train['ds'], y=df_train['EMA_30'], mode='lines', name='EMA 30'))
+
+# Plot Bollinger Bands
+fig.add_trace(go.Scatter(x=df_train['ds'], y=df_train['Bollinger_Upper'], mode='lines', name='Bollinger Upper'))
+fig.add_trace(go.Scatter(x=df_train['ds'], y=df_train['Bollinger_Lower'], mode='lines', name='Bollinger Lower'))
+
 st.plotly_chart(fig)
 
-# Technical Analysis Recommendations using TradingView_TA
-st.subheader(f"Technical Analysis Recommendations for {selected_crypto}")
+# Plot RSI
+st.subheader(f"RSI Plot for {selected_crypto}")
+fig_rsi = go.Figure(data=[go.Scatter(x=df_train['ds'], y=df_train['RSI'], mode='lines', name='RSI')])
+fig_rsi.add_hline(y=30, line_dash="dash", line_color="green")  # Oversold threshold
+fig_rsi.add_hline(y=70, line_dash="dash", line_color="red")  # Overbought threshold
+st.plotly_chart(fig_rsi)
 
-handler = TA_Handler(
-    symbol=f"{selected_crypto.split()[0]}USD",
-    exchange="BINANCE",
-    screener="crypto",
-    interval=Interval.INTERVAL_1_DAY
-)
-
-recommendation = handler.get_analysis().summary
-st.write(f"Overall Recommendation: {recommendation['RECOMMENDATION']}")
-st.write(f"Buy: {recommendation['BUY']}, Sell: {recommendation['SELL']}, Neutral: {recommendation['NEUTRAL']}")
+# Plot MACD
+st.subheader(f"MACD Plot for {selected_crypto}")
+fig_macd = go.Figure()
+fig_macd.add_trace(go.Scatter(x=df_train['ds'], y=df_train['MACD'], mode='lines', name='MACD'))
+fig_macd.add_trace(go.Scatter(x=df_train['ds'], y=df_train['MACD_Signal'], mode='lines', name='MACD Signal'))
+fig_macd.add_trace(go.Bar(x=df_train['ds'], y=df_train['MACD_Histogram'], name='MACD Histogram'))
+st.plotly_chart(fig_macd)
