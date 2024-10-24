@@ -58,7 +58,8 @@ def perform_technical_analysis(df, analysis_type):
             recommendation = "The SMA signal indicates a **strong sell** recommendation."
         else:
             recommendation = "The SMA signal indicates a **hold** recommendation."
-            elif analysis_type == 'RSI':
+
+    elif analysis_type == 'RSI':
         delta = df['Close'].diff(1)
         gain = delta.where(delta > 0, 0)
         loss = -delta.where(delta < 0, 0)
@@ -78,6 +79,7 @@ def perform_technical_analysis(df, analysis_type):
             recommendation = "The RSI signal indicates the asset is **oversold**. Consider buying."
         else:
             recommendation = "The RSI signal indicates the asset is **neutral**. No clear action recommended."
+
     elif analysis_type == 'MACD':
         df['EMA12'] = df['Close'].ewm(span=12, adjust=False).mean()
         df['EMA26'] = df['Close'].ewm(span=26, adjust=False).mean()
@@ -95,6 +97,7 @@ def perform_technical_analysis(df, analysis_type):
             recommendation = "The MACD signal indicates a **sell** recommendation."
         else:
             recommendation = "The MACD signal indicates a **hold** recommendation."
+
     elif analysis_type == 'Bollinger Bands':
         df['MA'] = df['Close'].rolling(window=20).mean()
         df['STD'] = df['Close'].rolling(window=20).std()
@@ -114,6 +117,7 @@ def perform_technical_analysis(df, analysis_type):
             recommendation = "The Bollinger Bands signal indicates the asset is **oversold**."
         else:
             recommendation = "The Bollinger Bands signal indicates the asset is **neutral**."
+
     elif analysis_type == 'Exponential Moving Averages (EMA)':
         df['EMA20'] = df['Close'].ewm(span=20, adjust=False).mean()
         df['EMA50'] = df['Close'].ewm(span=50, adjust=False).mean()
@@ -133,73 +137,27 @@ def perform_technical_analysis(df, analysis_type):
             recommendation = "The EMA signal indicates a **strong sell** recommendation."
         else:
             recommendation = "The EMA signal indicates a **hold** recommendation."
-    elif analysis_type == 'Stochastic Oscillator':
-        df['L14'] = df['Low'].rolling(window=14).min()
-        df['H14'] = df['High'].rolling(window=14).max()
-        df['%K'] = 100 * ((df['Close'] - df['L14']) / (df['H14'] - df['L14']))
-        df['%D'] = df['%K'].rolling(window=3).mean()
-        fig = go.Figure()
-        fig.add_trace(go.Scatter(x=df.index, y=df['%K'], mode='lines', name='%K'))
-        fig.add_trace(go.Scatter(x=df.index, y=df['%D'], mode='lines', name='%D'))
-        fig.update_layout(title='Stochastic Oscillator', xaxis_title='Date', yaxis_title='Value')
-        fig.add_hline(y=80, line_dash="dash", line_color="red", annotation_text="Overbought")
-        fig.add_hline(y=20, line_dash="dash", line_color="green", annotation_text="Oversold")
-        latest_k = df['%K'].iloc[-1]
-        latest_d = df['%D'].iloc[-1]
-        if latest_k > 80:
-            recommendation = "The Stochastic Oscillator indicates the asset is **overbought**. Consider selling."
-        elif latest_k < 20:
-            recommendation = "The Stochastic Oscillator indicates the asset is **oversold**. Consider buying."
-        else:
-            recommendation = "The Stochastic Oscillator indicates the asset is **neutral**. No clear action recommended."
-
-    elif analysis_type == 'Ichimoku Cloud':
-        df['Tenkan-sen'] = (df['High'].rolling(window=9).max() + df['Low'].rolling(window=9).min()) / 2
-        df['Kijun-sen'] = (df['High'].rolling(window=26).max() + df['Low'].rolling(window=26).min()) / 2
-        df['Senkou Span A'] = ((df['Tenkan-sen'] + df['Kijun-sen']) / 2).shift(26)
-        df['Senkou Span B'] = ((df['High'].rolling(window=52).max() + df['Low'].rolling(window=52).min()) / 2).shift(26)
-        df['Chikou Span'] = df['Close'].shift(-26)
-        fig = go.Figure()
-        fig.add_trace(go.Scatter(x=df.index, y=df['Close'], mode='lines', name='Close'))
-        fig.add_trace(go.Scatter(x=df.index, y=df['Tenkan-sen'], mode='lines', name='Tenkan-sen'))
-        fig.add_trace(go.Scatter(x=df.index, y=df['Kijun-sen'], mode='lines', name='Kijun-sen'))
-        fig.add_trace(go.Scatter(x=df.index, y=df['Senkou Span A'], mode='lines', fill='tonexty', name='Senkou Span A'))
-        fig.add_trace(go.Scatter(x=df.index, y=df['Senkou Span B'], mode='lines', fill='tonexty', name='Senkou Span B'))
-        fig.add_trace(go.Scatter(x=df.index, y=df['Chikou Span'], mode='lines', name='Chikou Span'))
-        fig.update_layout(title='Ichimoku Cloud', xaxis_title='Date', yaxis_title='Price')
-        latest_close = df['Close'].iloc[-1]
-        latest_span_a = df['Senkou Span A'].iloc[-1]
-        latest_span_b = df['Senkou Span B'].iloc[-1]
-        if latest_close > latest_span_a and latest_close > latest_span_b:
-            recommendation = "The Ichimoku Cloud indicates a **strong buy** recommendation."
-        elif latest_close < latest_span_a and latest_close < latest_span_b:
-            recommendation = "The Ichimoku Cloud indicates a **strong sell** recommendation."
-        else:
-            recommendation = "The Ichimoku Cloud indicates a **neutral** recommendation."
 
     return fig, recommendation
 
-    return fig, recommendation
+# Streamlit interface
+st.title('Cryptocurrency Price Analysis and Technical Indicators')
 
-# Streamlit app
-st.title("Cryptocurrency Analysis Dashboard")
-# Sidebar options
-st.sidebar.title("Options")
-symbols = {'Bitcoin': 'bitcoin', 'Ethereum': 'ethereum', 'Litecoin': 'litecoin', 'Dogecoin': 'dogecoin'}
-selected_symbol = st.sidebar.selectbox('Select Cryptocurrency', list(symbols.keys()))
-technical_analysis_type = st.sidebar.selectbox('Select Technical Analysis Type', 
-                                               ['Moving Averages', 'RSI', 'MACD', 'Bollinger Bands', 
-                                                'Exponential Moving Averages (EMA)', 
-                                                'Stochastic Oscillator', 
-                                                'Ichimoku Cloud'])
+# Dropdown menu to select cryptocurrency
+symbol = st.selectbox('Select Cryptocurrency', ['bitcoin', 'ethereum', 'litecoin', 'dogecoin'])
 
-# Fetch data for selected symbol
-data = fetch_data(symbols[selected_symbol])
-# Display candlestick chart
-st.subheader(f"{selected_symbol} Candlestick Chart")
-st.plotly_chart(plot_candlestick_chart(data))
-# Perform selected technical analysis
-st.subheader(f"{selected_symbol} {technical_analysis_type} Analysis")
-analysis_fig, recommendation = perform_technical_analysis(data, technical_analysis_type)
-st.plotly_chart(analysis_fig)
-st.markdown(recommendation)
+# Fetch and display candlestick chart
+df = fetch_data(symbol)
+st.write("Candlestick Chart")
+st.plotly_chart(plot_candlestick_chart(df))
+
+# Technical analysis type
+analysis_type = st.selectbox('Select Technical Analysis', ['Moving Averages', 'RSI', 'MACD', 'Bollinger Bands', 'Exponential Moving Averages (EMA)'])
+
+# Perform and display technical analysis
+st.write(f"Technical Analysis: {analysis_type}")
+fig, recommendation = perform_technical_analysis(df, analysis_type)
+st.plotly_chart(fig)
+
+# Display recommendation
+st.write(f"Recommendation: {recommendation}")
