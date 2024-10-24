@@ -204,9 +204,6 @@ def main():
     technical_fig = create_technical_chart(data, indicator, params)
     st.plotly_chart(technical_fig, use_container_width=True)
 
-if __name__ == "__main__":
-    main()
-
 # Add these functions back for predictions
 @st.cache_resource
 def load_model(url):
