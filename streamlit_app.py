@@ -13,9 +13,9 @@ cg = CoinGeckoAPI()
 # Constants
 START = (date.today() - timedelta(days=365)).strftime("%Y-%m-%d")
 TODAY = date.today().strftime("%Y-%m-%d")
-PREDICTION_PERIOD = 5  # Predicting for the next 5 days
+PREDICTION_PERIOD = 5
 
-# Google Drive links for the models
+# Configuration dictionaries
 MODEL_URLS = {
     'Bitcoin (BTC)': "https://drive.google.com/uc?export=download&id=15fpJ48AGZqoXSIr3kQHnCLvsg_be8D5r",
     'Ethereum (ETH)': "https://drive.google.com/uc?export=download&id=1q5I7bwqVI8_J28HXPx4DwzqHjtdTSib0",
@@ -23,7 +23,6 @@ MODEL_URLS = {
     'Dogecoin (DOGE)': "https://drive.google.com/uc?export=download&id=1ImJH3OsLPGlgDsEyg1Hllih0J-T29WuC"
 }
 
-# Cryptocurrency options
 CRYPTO_OPTIONS = {
     'Bitcoin (BTC)': 'bitcoin',
     'Ethereum (ETH)': 'ethereum',
@@ -32,168 +31,178 @@ CRYPTO_OPTIONS = {
 }
 
 def load_data(coin):
-    """Fetch historical price data from CoinGecko"""
+    """Fetch historical price data and additional market data from CoinGecko"""
+    # Get price data
     market_data = cg.get_coin_market_chart_by_id(id=coin, vs_currency='usd', days=365)
     prices = market_data['prices']
-    data = pd.DataFrame(prices, columns=['timestamp', 'Close'])
-    data['Date'] = pd.to_datetime(data['timestamp'], unit='ms')
-    data = data[['Date', 'Close']]
-    return data
-
-def moving_average(data, window):
-    """Calculate Moving Average"""
-    return data['Close'].rolling(window=window).mean()
-
-def rsi(data, window=14):
-    """Calculate Relative Strength Index"""
-    delta = data['Close'].diff(1)
-    gain = delta.where(delta > 0, 0)
-    loss = -delta.where(delta < 0, 0)
-    avg_gain = gain.rolling(window=window).mean()
-    avg_loss = loss.rolling(window=window).mean()
-    rs = avg_gain / avg_loss
-    return 100 - (100 / (1 + rs))
-
-def macd(data, short_window=12, long_window=26, signal_window=9):
-    """Calculate MACD"""
-    short_ema = data['Close'].ewm(span=short_window, adjust=False).mean()
-    long_ema = data['Close'].ewm(span=long_window, adjust=False).mean()
-    macd_line = short_ema - long_ema
-    signal_line = macd_line.ewm(span=signal_window, adjust=False).mean()
-    return macd_line, signal_line
-
-def bollinger_bands(data, window=20):
-    """Calculate Bollinger Bands"""
-    sma = data['Close'].rolling(window=window).mean()
-    std_dev = data['Close'].rolling(window=window).std()
-    upper_band = sma + (std_dev * 2)
-    lower_band = sma - (std_dev * 2)
-    return upper_band, lower_band
-
-def ema(data, window):
-    """Calculate Exponential Moving Average"""
-    return data['Close'].ewm(span=window, adjust=False).mean()
-
-@st.cache_resource
-def load_model(url):
-    """Download and load the model from Google Drive"""
-    response = requests.get(url)
-    with open("crypto_model.pkl", "wb") as file:
-        file.write(response.content)
+    volumes = market_data['total_volumes']
+    market_caps = market_data['market_caps']
     
-    with open("crypto_model.pkl", "rb") as file:
-        model = pickle.load(file)
+    # Create main DataFrame
+    df = pd.DataFrame(prices, columns=['timestamp', 'Close'])
+    df['Date'] = pd.to_datetime(df['timestamp'], unit='ms')
     
-    return model
+    # Add volume and market cap
+    df['Volume'] = [v[1] for v in volumes]
+    df['Market_Cap'] = [m[1] for m in market_caps]
+    
+    # Calculate daily price changes
+    df['Price_Change'] = df['Close'].pct_change() * 100
+    
+    # Get additional coin info
+    coin_info = cg.get_coin_by_id(coin)
+    
+    return df, coin_info
 
-def prepare_prediction_features(data):
-    """Prepare features for prediction"""
-    df_train = data[['Date', 'Close']].rename(columns={"Date": "ds", "Close": "y"})
+def get_detailed_market_info(coin_info):
+    """Extract relevant market information from coin info"""
+    return {
+        'Current Price (USD)': coin_info['market_data']['current_price']['usd'],
+        '24h Change (%)': coin_info['market_data']['price_change_percentage_24h'],
+        '7d Change (%)': coin_info['market_data']['price_change_percentage_7d'],
+        '30d Change (%)': coin_info['market_data']['price_change_percentage_30d'],
+        'Market Cap (USD)': coin_info['market_data']['market_cap']['usd'],
+        'Market Cap Rank': coin_info['market_cap_rank'],
+        '24h Volume': coin_info['market_data']['total_volume']['usd'],
+        'Circulating Supply': coin_info['market_data']['circulating_supply'],
+        'Total Supply': coin_info['market_data']['total_supply'],
+        'ATH (USD)': coin_info['market_data']['ath']['usd'],
+        'ATH Change (%)': coin_info['market_data']['ath_change_percentage']['usd']
+    }
+
+def create_candlestick_chart(data, title):
+    """Create a candlestick chart"""
+    fig = go.Figure(data=[go.Candlestick(
+        x=data['Date'],
+        open=data['Close'].shift(1),
+        high=data['Close'] * 1.001,  # Simulating high price
+        low=data['Close'] * 0.999,   # Simulating low price
+        close=data['Close'],
+        name='Price'
+    )])
     
-    # Feature Engineering
-    df_train['SMA_10'] = df_train['y'].rolling(window=10).mean()
-    df_train['SMA_30'] = df_train['y'].rolling(window=30).mean()
-    df_train['EMA_10'] = df_train['y'].ewm(span=10, adjust=False).mean()
-    df_train['EMA_30'] = df_train['y'].ewm(span=30, adjust=False).mean()
+    fig.update_layout(
+        title=title,
+        yaxis_title='Price (USD)',
+        xaxis_title='Date',
+        template='plotly_dark',
+        height=600
+    )
     
-    df_train['day'] = df_train['ds'].dt.day
-    df_train['month'] = df_train['ds'].dt.month
-    df_train['year'] = df_train['ds'].dt.year
+    return fig
+
+def create_technical_chart(data, indicator, params=None):
+    """Create a technical analysis chart"""
+    fig = go.Figure()
     
-    return df_train.dropna()
+    # Add price line
+    fig.add_trace(go.Scatter(
+        x=data['Date'],
+        y=data['Close'],
+        name='Price',
+        line=dict(color='lightgray')
+    ))
+    
+    # Add technical indicator
+    if indicator == 'Moving Average':
+        window = params.get('window', 20)
+        ma = data['Close'].rolling(window=window).mean()
+        fig.add_trace(go.Scatter(x=data['Date'], y=ma, name=f'MA {window}'))
+        
+    elif indicator == 'RSI':
+        window = params.get('window', 14)
+        delta = data['Close'].diff()
+        gain = (delta.where(delta > 0, 0)).rolling(window=window).mean()
+        loss = (-delta.where(delta < 0, 0)).rolling(window=window).mean()
+        rs = gain / loss
+        rsi = 100 - (100 / (1 + rs))
+        fig.add_trace(go.Scatter(x=data['Date'], y=rsi, name=f'RSI {window}'))
+        
+    elif indicator == 'Bollinger Bands':
+        window = params.get('window', 20)
+        ma = data['Close'].rolling(window=window).mean()
+        std = data['Close'].rolling(window=window).std()
+        fig.add_trace(go.Scatter(x=data['Date'], y=ma + 2*std, name='Upper Band'))
+        fig.add_trace(go.Scatter(x=data['Date'], y=ma - 2*std, name='Lower Band'))
+        
+    elif indicator == 'MACD':
+        short_ema = data['Close'].ewm(span=12, adjust=False).mean()
+        long_ema = data['Close'].ewm(span=26, adjust=False).mean()
+        macd = short_ema - long_ema
+        signal = macd.ewm(span=9, adjust=False).mean()
+        fig.add_trace(go.Scatter(x=data['Date'], y=macd, name='MACD'))
+        fig.add_trace(go.Scatter(x=data['Date'], y=signal, name='Signal'))
+    
+    fig.update_layout(
+        title=f'{indicator} Analysis',
+        yaxis_title='Value',
+        xaxis_title='Date',
+        template='plotly_dark',
+        height=400
+    )
+    
+    return fig
 
 def main():
-    st.title("Cryptocurrency Price Prediction and Technical Analysis")
+    st.title("Cryptocurrency Analysis Dashboard")
     
-    # Select cryptocurrency
-    selected_crypto = st.selectbox('Select Cryptocurrency', list(CRYPTO_OPTIONS.keys()))
+    # Sidebar for cryptocurrency selection
+    selected_crypto = st.sidebar.selectbox('Select Cryptocurrency', list(CRYPTO_OPTIONS.keys()))
     selected_coin = CRYPTO_OPTIONS[selected_crypto]
     
     # Load data
-    data = load_data(selected_coin)
+    data, coin_info = load_data(selected_coin)
     
-    # Display candlestick chart
-    st.subheader(f"Candlestick Chart for {selected_crypto}")
-    fig = go.Figure(data=[go.Candlestick(
-        x=data['Date'],
-        open=data['Close'],
-        high=data['Close'] * 1.01,
-        low=data['Close'] * 0.99,
-        close=data['Close']
-    )])
+    # Market Information Section
+    st.header("Market Information")
+    market_info = get_detailed_market_info(coin_info)
     
-    # Technical indicator selection
+    # Create three columns for market info
+    col1, col2, col3 = st.columns(3)
+    
+    with col1:
+        st.metric("Current Price", f"${market_info['Current Price (USD)']:,.2f}", 
+                 f"{market_info['24h Change (%)']:.2f}%")
+    with col2:
+        st.metric("Market Cap", f"${market_info['Market Cap (USD)']:,.0f}", 
+                 f"Rank: {market_info['Market Cap Rank']}")
+    with col3:
+        st.metric("24h Volume", f"${market_info['24h Volume']:,.0f}")
+    
+    # Recent Price Data Table
+    st.subheader(f"Last 5 Days Data for {selected_crypto}")
+    recent_data = data.tail(5)[['Date', 'Close', 'Volume', 'Price_Change', 'Market_Cap']].copy()
+    recent_data['Date'] = recent_data['Date'].dt.date
+    recent_data.columns = ['Date', 'Close Price (USD)', '24h Volume', 'Daily Change (%)', 'Market Cap (USD)']
+    recent_data = recent_data.set_index('Date')
+    st.dataframe(recent_data.style.format({
+        'Close Price (USD)': '${:,.2f}',
+        'Daily Change (%)': '{:,.2f}%',
+        '24h Volume': '${:,.0f}',
+        'Market Cap (USD)': '${:,.0f}'
+    }))
+    
+    # Candlestick Chart Section
+    st.header("Price Chart")
+    candlestick_fig = create_candlestick_chart(data, f"{selected_crypto} Price Chart")
+    st.plotly_chart(candlestick_fig, use_container_width=True)
+    
+    # Technical Analysis Section
+    st.header("Technical Analysis")
     indicator = st.selectbox(
         'Select Technical Indicator',
-        ['Moving Average', 'RSI', 'MACD', 'Bollinger Bands', 'EMA']
+        ['Moving Average', 'RSI', 'MACD', 'Bollinger Bands']
     )
     
-    # Handle technical indicators
-    if indicator == 'Moving Average':
-        window = st.slider('Select MA Window (days)', 5, 100, 20)
-        ma = moving_average(data, window)
-        fig.add_trace(go.Scatter(x=data['Date'], y=ma, mode='lines', name=f'MA {window} days'))
-        st.write(f"**Recommendation:** Look for crossovers between the price and MA for trend signals.")
+    # Parameter selection based on indicator
+    params = {}
+    if indicator in ['Moving Average', 'RSI', 'Bollinger Bands']:
+        window = st.slider(f'Select {indicator} Window', 5, 50, 20)
+        params['window'] = window
     
-    elif indicator == 'RSI':
-        window = st.slider('Select RSI Window (days)', 5, 100, 14)
-        rsi_values = rsi(data, window)
-        fig.add_trace(go.Scatter(x=data['Date'], y=rsi_values, mode='lines', name=f'RSI {window} days'))
-        st.write("**Recommendation:** RSI above 70 suggests overbought, below 30 suggests oversold.")
-    
-    elif indicator == 'MACD':
-        macd_line, signal_line = macd(data)
-        fig.add_trace(go.Scatter(x=data['Date'], y=macd_line, mode='lines', name='MACD Line'))
-        fig.add_trace(go.Scatter(x=data['Date'], y=signal_line, mode='lines', name='Signal Line'))
-        st.write("**Recommendation:** MACD crossing above signal line is bullish, below is bearish.")
-    
-    elif indicator == 'Bollinger Bands':
-        upper_band, lower_band = bollinger_bands(data)
-        fig.add_trace(go.Scatter(x=data['Date'], y=upper_band, mode='lines', name='Upper Band'))
-        fig.add_trace(go.Scatter(x=data['Date'], y=lower_band, mode='lines', name='Lower Band'))
-        st.write("**Recommendation:** Price at bands suggests potential reversal points.")
-    
-    elif indicator == 'EMA':
-        window = st.slider('Select EMA Window (days)', 5, 100, 20)
-        ema_values = ema(data, window)
-        fig.add_trace(go.Scatter(x=data['Date'], y=ema_values, mode='lines', name=f'EMA {window} days'))
-        st.write("**Recommendation:** Price above EMA suggests bullish, below suggests bearish.")
-    
-    st.plotly_chart(fig)
-    
-    # Price Prediction Section
-    st.title("Price Prediction (Next 5 Days)")
-    
-    # Load and prepare model
-    model = load_model(MODEL_URLS[selected_crypto])
-    df_train = prepare_prediction_features(data)
-    
-    # Prepare future features
-    future_dates = pd.date_range(TODAY, periods=PREDICTION_PERIOD, freq='D')
-    last_row = df_train.tail(1)
-    
-    future_features = pd.DataFrame({
-        'day': [d.day for d in future_dates],
-        'month': [d.month for d in future_dates],
-        'year': [d.year for d in future_dates],
-        'SMA_10': [last_row['SMA_10'].values[0]] * PREDICTION_PERIOD,
-        'SMA_30': [last_row['SMA_30'].values[0]] * PREDICTION_PERIOD,
-        'EMA_10': [last_row['EMA_10'].values[0]] * PREDICTION_PERIOD,
-        'EMA_30': [last_row['EMA_30'].values[0]] * PREDICTION_PERIOD
-    })
-    
-    # Make predictions
-    features_order = ['SMA_10', 'SMA_30', 'EMA_10', 'EMA_30', 'day', 'month', 'year']
-    future_features = future_features[features_order]
-    future_close = model.predict(future_features)
-    
-    # Display predictions
-    future_df = pd.DataFrame({
-        'Date': future_dates,
-        'Predicted Close': future_close
-    })
-    future_df.set_index('Date', inplace=True)
-    st.write(future_df)
+    # Create and display technical chart
+    technical_fig = create_technical_chart(data, indicator, params)
+    st.plotly_chart(technical_fig, use_container_width=True)
 
 if __name__ == "__main__":
     main()
