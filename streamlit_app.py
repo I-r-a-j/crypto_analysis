@@ -2,8 +2,10 @@ import requests
 import pickle
 import streamlit as st
 import pandas as pd
+import plotly.graph_objs as go
 from datetime import date, timedelta
-from pycoingecko import CoinGeckoAPI  # Import CoinGeckoAPI for cryptocurrency data
+from pycoingecko import CoinGeckoAPI
+from tradingview_ta import TA_Handler, Interval, Exchange  # TradingView technical analysis
 
 # Initialize CoinGecko API client
 cg = CoinGeckoAPI()
@@ -17,7 +19,7 @@ MODEL_URLS = {
 }
 
 # Function to download the model from Google Drive
-@st.cache_resource  # Cache the model to avoid re-downloading
+@st.cache_resource
 def load_model(url):
     response = requests.get(url)
     with open("crypto_model.pkl", "wb") as file:
@@ -34,7 +36,7 @@ TODAY = date.today().strftime("%Y-%m-%d")
 period = 5  # Predicting for the next 5 days
 
 # Streamlit UI
-st.title("Cryptocurrency Price Prediction (Next 5 Days)")
+st.title("Cryptocurrency Price Prediction & Analysis (Next 5 Days)")
 
 # Dropdown for selecting cryptocurrency
 crypto_options = {
@@ -121,3 +123,35 @@ future_df.set_index('Date', inplace=True)
 # Display the forecast data
 st.subheader(f"Predicted Prices for {selected_crypto} for the Next {period} Days")
 st.write(future_df)
+
+# Candlestick Chart for historical data
+st.subheader(f"Candlestick Chart for {selected_crypto}")
+
+candlestick_data = cg.get_coin_market_chart_by_id(id=selected_coin, vs_currency='usd', days=30)
+candlestick_df = pd.DataFrame(candlestick_data['prices'], columns=['timestamp', 'Close'])
+candlestick_df['Date'] = pd.to_datetime(candlestick_df['timestamp'], unit='ms')
+
+fig = go.Figure(data=[go.Candlestick(
+    x=candlestick_df['Date'],
+    open=candlestick_df['Close'].shift(1),
+    high=candlestick_df['Close'].rolling(window=3).max(),
+    low=candlestick_df['Close'].rolling(window=3).min(),
+    close=candlestick_df['Close'],
+    increasing_line_color='green', decreasing_line_color='red'
+)])
+
+st.plotly_chart(fig)
+
+# Technical Analysis Recommendations using TradingView_TA
+st.subheader(f"Technical Analysis Recommendations for {selected_crypto}")
+
+handler = TA_Handler(
+    symbol=f"{selected_crypto.split()[0]}USD",
+    exchange="BINANCE",
+    screener="crypto",
+    interval=Interval.INTERVAL_1_DAY
+)
+
+recommendation = handler.get_analysis().summary
+st.write(f"Overall Recommendation: {recommendation['RECOMMENDATION']}")
+st.write(f"Buy: {recommendation['BUY']}, Sell: {recommendation['SELL']}, Neutral: {recommendation['NEUTRAL']}")
