@@ -5,3 +5,4 @@ pycoingecko
 requests
 numpy
 scikit-learn
+tradingview_ta
