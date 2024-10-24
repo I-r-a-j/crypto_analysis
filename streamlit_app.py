@@ -42,6 +42,14 @@ def fetch_data(crypto_name, days='365'):  # Limited to 365 days for free API use
     df['Low'] = df['Close'].rolling(window=2).min()   # Simulate 'Low' as min of last 2 days
     df.dropna(inplace=True)  # Remove rows with NaN values due to shifting
 
+    # Compute additional features for the model
+    df['EMA_10'] = df['Close'].ewm(span=10, adjust=False).mean()
+    df['EMA_30'] = df['Close'].ewm(span=30, adjust=False).mean()
+    df['SMA_10'] = df['Close'].rolling(window=10).mean()
+    df['SMA_30'] = df['Close'].rolling(window=30).mean()
+    df['day'] = df['Date'].dt.dayofweek  # Add day of the week as a feature
+    
+    df.dropna(inplace=True)  # Remove rows with NaN values after adding indicators
     return df
 
 # Function to plot a candlestick chart
@@ -140,33 +148,31 @@ def load_data(coin):
     
     return data
 
-# Streamlit UI
-st.title('Cryptocurrency Price Analysis, Technical Indicators, and Prediction')
+# Streamlit interface
+st.title('Cryptocurrency Price Prediction and Technical Analysis')
+cryptocurrency = st.selectbox('Select Cryptocurrency', options=['Bitcoin (BTC)', 'Ethereum (ETH)', 'Litecoin (LTC)', 'Dogecoin (DOGE)'])
 
-# Dropdown for selecting cryptocurrency (single selection box used across all sections)
-crypto_name = st.selectbox('Select Cryptocurrency', list(cryptocurrency_map.keys()))
+# Load the data
+df = fetch_data(cryptocurrency)
 
-# Slider to select number of days within the free limit
-days = st.slider('Select number of days for historical data (max 365)', min_value=1, max_value=365, value=365)
-
-# Fetch and display candlestick chart
-df = fetch_data(crypto_name, str(days))
-st.write(f"Candlestick Chart for {crypto_name}")
-st.plotly_chart(plot_candlestick_chart(df))
-
-# Technical analysis type
-analysis_type = st.selectbox('Select Technical Analysis', ['Moving Averages', 'RSI', 'MACD', 'Bollinger Bands', 'Exponential Moving Averages (EMA)'])
-
-# Perform and display technical analysis
-st.write(f"Technical Analysis: {analysis_type}")
-fig, recommendation = perform_technical_analysis(df, analysis_type)
+# Candlestick chart display
+st.subheader(f'{cryptocurrency} Candlestick Chart')
+fig = plot_candlestick_chart(df)
 st.plotly_chart(fig)
 
-# Display recommendation
-st.write(f"Recommendation: {recommendation}")
+# Technical analysis selection
+analysis_type = st.selectbox('Select Technical Analysis', ['Moving Averages', 'RSI', 'MACD', 'Bollinger Bands', 'Exponential Moving Averages (EMA)'])
+fig, recommendation = perform_technical_analysis(df, analysis_type)
+st.plotly_chart(fig)
+st.write(f'Recommendation: {recommendation}')
 
-# Load the model corresponding to the selected cryptocurrency
-model = load_model(MODEL_URLS[crypto_name])
+# Load the pre-trained model for prediction
+model_url = MODEL_URLS[cryptocurrency]
+model = load_model(model_url)
 
-# Predict future price using the model
-st.write(f"Predicted future price for {crypto_name}: {model.predict(df[['Close']])[-1]} USD")
+# Prepare the input data for prediction
+input_data = df[['Close', 'EMA_10', 'EMA_30', 'SMA_10', 'SMA_30', 'day']].iloc[-1].values.reshape(1, -1)
+
+# Make predictions using the model
+predicted_price = model.predict(input_data)
+st.subheader(f'Predicted {cryptocurrency} Price for Tomorrow: ${predicted_price[0]:.2f}')
