@@ -198,14 +198,25 @@ def create_technical_chart(data, indicator, params=None):
         yaxis_title='Value',
         xaxis_title='Date',
         template='plotly_dark',
-        height=400,
+        height=450,  # Increased height to accommodate recommendation
+        margin=dict(b=100),  # Added bottom margin for recommendation
         annotations=[
             dict(
                 text=recommendation,
                 xref="paper",
                 yref="paper",
                 x=0,
-                y=-0.2,
+                y=-0.25,  # Moved recommendation lower
+                showarrow=False,
+                font=dict(size=12),
+                align="left"
+            ),
+            dict(  # Added a separator line
+                text="____________________________________________________________________________________",
+                xref="paper",
+                yref="paper",
+                x=0,
+                y=-0.15,
                 showarrow=False,
                 font=dict(size=12),
                 align="left"
