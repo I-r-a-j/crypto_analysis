@@ -130,9 +130,15 @@ def create_technical_chart(data, indicator, params=None):
         rsi = 100 - (100 / (1 + rs))
         fig.add_trace(go.Scatter(x=data['Date'], y=rsi, name=f'RSI {window}'))
         
-        # Add RSI reference lines
-        fig.add_hline(y=70, line_dash="dash", line_color="red", annotation_text="Overbought (70)")
-        fig.add_hline(y=30, line_dash="dash", line_color="green", annotation_text="Oversold (30)")
+        # Add RSI reference lines with adjusted layout
+        fig.add_hline(y=70, line_dash="dash", line_color="red", 
+                     annotation=dict(text="Overbought (70)", 
+                                   x=1.02, 
+                                   xanchor="left"))
+        fig.add_hline(y=30, line_dash="dash", line_color="green", 
+                     annotation=dict(text="Oversold (30)", 
+                                   x=1.02, 
+                                   xanchor="left"))
         
         # Generate RSI trading signal
         last_rsi = rsi.iloc[-1]
@@ -192,26 +198,33 @@ def create_technical_chart(data, indicator, params=None):
         else:
             recommendation = "⏺️ HOLD Signal: MACD shows neutral momentum."
     
-    # Update layout with recommendation
+    # Common layout updates for all indicators
     fig.update_layout(
         title=f'{indicator} Analysis',
         yaxis_title='Value',
         xaxis_title='Date',
         template='plotly_dark',
-        height=450,  # Increased height to accommodate recommendation
-        margin=dict(b=100),  # Added bottom margin for recommendation
+        height=450,
+        margin=dict(b=100, r=100),  # Added right margin for RSI reference lines
+        showlegend=True,
+        legend=dict(
+            yanchor="top",
+            y=0.99,
+            xanchor="left",
+            x=0.01
+        ),
         annotations=[
             dict(
                 text=recommendation,
                 xref="paper",
                 yref="paper",
                 x=0,
-                y=-0.25,  # Moved recommendation lower
+                y=-0.25,
                 showarrow=False,
                 font=dict(size=12),
                 align="left"
             ),
-            dict(  # Added a separator line
+            dict(
                 text="____________________________________________________________________________________",
                 xref="paper",
                 yref="paper",
@@ -223,6 +236,10 @@ def create_technical_chart(data, indicator, params=None):
             )
         ]
     )
+    
+    # Specific layout adjustments for RSI
+    if indicator == 'RSI':
+        fig.update_yaxes(range=[0, 100])  # Fix RSI range
     
     return fig
     
