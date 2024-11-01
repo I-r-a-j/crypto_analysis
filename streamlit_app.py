@@ -92,8 +92,9 @@ def create_candlestick_chart(data, title):
     return fig
 
 def create_technical_chart(data, indicator, params=None):
-    """Create a technical analysis chart"""
+    """Create a technical analysis chart with trading signals"""
     fig = go.Figure()
+    recommendation = ""
     
     # Add price line only for Moving Average and Bollinger Bands
     if indicator in ['Moving Average', 'Bollinger Bands']:
@@ -110,6 +111,16 @@ def create_technical_chart(data, indicator, params=None):
         ma = data['Close'].rolling(window=window).mean()
         fig.add_trace(go.Scatter(x=data['Date'], y=ma, name=f'MA {window}'))
         
+        # Generate MA trading signal
+        last_price = data['Close'].iloc[-1]
+        last_ma = ma.iloc[-1]
+        if last_price > last_ma:
+            recommendation = "📈 BUY Signal: Price is above the moving average, indicating potential upward momentum."
+        elif last_price < last_ma:
+            recommendation = "📉 SELL Signal: Price is below the moving average, indicating potential downward momentum."
+        else:
+            recommendation = "⏺️ HOLD Signal: Price is at the moving average level."
+        
     elif indicator == 'RSI':
         window = params.get('window', 14)
         delta = data['Close'].diff()
@@ -119,27 +130,87 @@ def create_technical_chart(data, indicator, params=None):
         rsi = 100 - (100 / (1 + rs))
         fig.add_trace(go.Scatter(x=data['Date'], y=rsi, name=f'RSI {window}'))
         
+        # Add RSI reference lines
+        fig.add_hline(y=70, line_dash="dash", line_color="red", annotation_text="Overbought (70)")
+        fig.add_hline(y=30, line_dash="dash", line_color="green", annotation_text="Oversold (30)")
+        
+        # Generate RSI trading signal
+        last_rsi = rsi.iloc[-1]
+        if last_rsi > 70:
+            recommendation = "📉 SELL Signal: RSI indicates overbought conditions (>70)."
+        elif last_rsi < 30:
+            recommendation = "📈 BUY Signal: RSI indicates oversold conditions (<30)."
+        else:
+            recommendation = "⏺️ HOLD Signal: RSI indicates neutral market conditions (30-70)."
+        
     elif indicator == 'Bollinger Bands':
         window = params.get('window', 20)
         ma = data['Close'].rolling(window=window).mean()
         std = data['Close'].rolling(window=window).std()
-        fig.add_trace(go.Scatter(x=data['Date'], y=ma + 2*std, name='Upper Band'))
-        fig.add_trace(go.Scatter(x=data['Date'], y=ma - 2*std, name='Lower Band'))
+        upper_band = ma + 2*std
+        lower_band = ma - 2*std
+        fig.add_trace(go.Scatter(x=data['Date'], y=upper_band, name='Upper Band'))
+        fig.add_trace(go.Scatter(x=data['Date'], y=lower_band, name='Lower Band'))
+        
+        # Generate Bollinger Bands trading signal
+        last_price = data['Close'].iloc[-1]
+        last_upper = upper_band.iloc[-1]
+        last_lower = lower_band.iloc[-1]
+        if last_price > last_upper:
+            recommendation = "📉 SELL Signal: Price is above the upper Bollinger Band, indicating overbought conditions."
+        elif last_price < last_lower:
+            recommendation = "📈 BUY Signal: Price is below the lower Bollinger Band, indicating oversold conditions."
+        else:
+            recommendation = "⏺️ HOLD Signal: Price is within the Bollinger Bands, indicating normal trading range."
         
     elif indicator == 'MACD':
-        short_ema = data['Close'].ewm(span=12, adjust=False).mean()
-        long_ema = data['Close'].ewm(span=26, adjust=False).mean()
+        # MACD parameters
+        fast_window = params.get('fast_window', 12)
+        slow_window = params.get('slow_window', 26)
+        signal_window = params.get('signal_window', 9)
+        
+        # Calculate MACD
+        short_ema = data['Close'].ewm(span=fast_window, adjust=False).mean()
+        long_ema = data['Close'].ewm(span=slow_window, adjust=False).mean()
         macd = short_ema - long_ema
-        signal = macd.ewm(span=9, adjust=False).mean()
+        signal = macd.ewm(span=signal_window, adjust=False).mean()
+        histogram = macd - signal
+        
+        # Add MACD, Signal, and Histogram
         fig.add_trace(go.Scatter(x=data['Date'], y=macd, name='MACD'))
         fig.add_trace(go.Scatter(x=data['Date'], y=signal, name='Signal'))
+        fig.add_trace(go.Bar(x=data['Date'], y=histogram, name='Histogram'))
+        
+        # Generate MACD trading signal
+        last_macd = macd.iloc[-1]
+        last_signal = signal.iloc[-1]
+        last_hist = histogram.iloc[-1]
+        if last_macd > last_signal and last_hist > 0:
+            recommendation = "📈 BUY Signal: MACD is above signal line with positive momentum."
+        elif last_macd < last_signal and last_hist < 0:
+            recommendation = "📉 SELL Signal: MACD is below signal line with negative momentum."
+        else:
+            recommendation = "⏺️ HOLD Signal: MACD shows neutral momentum."
     
+    # Update layout with recommendation
     fig.update_layout(
         title=f'{indicator} Analysis',
         yaxis_title='Value',
         xaxis_title='Date',
         template='plotly_dark',
-        height=400
+        height=400,
+        annotations=[
+            dict(
+                text=recommendation,
+                xref="paper",
+                yref="paper",
+                x=0,
+                y=-0.2,
+                showarrow=False,
+                font=dict(size=12),
+                align="left"
+            )
+        ]
     )
     
     return fig
@@ -200,8 +271,19 @@ def main():
     if indicator in ['Moving Average', 'RSI', 'Bollinger Bands']:
         window = st.slider(f'Select {indicator} Window', 5, 50, 20)
         params['window'] = window
-    
-    # Create and display technical chart
+    elif indicator == 'MACD':
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            fast_window = st.slider('Fast EMA Window', 8, 20, 12)
+            params['fast_window'] = fast_window
+        with col2:
+            slow_window = st.slider('Slow EMA Window', 20, 30, 26)
+            params['slow_window'] = slow_window
+        with col3:
+            signal_window = st.slider('Signal Window', 5, 15, 9)
+            params['signal_window'] = signal_window
+
+# Create and display technical chart
     technical_fig = create_technical_chart(data, indicator, params)
     st.plotly_chart(technical_fig, use_container_width=True)
 
