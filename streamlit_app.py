@@ -95,13 +95,14 @@ def create_technical_chart(data, indicator, params=None):
     """Create a technical analysis chart"""
     fig = go.Figure()
     
-    # Add price line
-    fig.add_trace(go.Scatter(
-        x=data['Date'],
-        y=data['Close'],
-        name='Price',
-        line=dict(color='lightgray')
-    ))
+    # Add price line only for Moving Average and Bollinger Bands
+    if indicator in ['Moving Average', 'Bollinger Bands']:
+        fig.add_trace(go.Scatter(
+            x=data['Date'],
+            y=data['Close'],
+            name='Price',
+            line=dict(color='lightgray')
+        ))
     
     # Add technical indicator
     if indicator == 'Moving Average':
@@ -142,7 +143,7 @@ def create_technical_chart(data, indicator, params=None):
     )
     
     return fig
-
+    
 def main():
     st.title("Cryptocurrency Analysis Dashboard")
     
