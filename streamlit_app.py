@@ -17,10 +17,10 @@ PREDICTION_PERIOD = 5
 
 # Configuration dictionaries
 MODEL_URLS = {
-    'Bitcoin (BTC)': "https://drive.google.com/uc?export=download&id=1lls7Ayk7mzMH3WJq73cCnIFAnWUFYLZA",
-    'Ethereum (ETH)': "https://drive.google.com/uc?export=download&id=1yA79Z4a9rhS8xf-UKF237MEdZPpQhJ-9",
-    'Litecoin (LTC)': "https://drive.google.com/uc?export=download&id=1zkIgjLgoSLr4utirDMK_BcPAAxNdGR4V",
-    'Dogecoin (DOGE)': "https://drive.google.com/uc?export=download&id=1WA_9RJspYk6Bo1GLD6_tPxCSiho8b0FI"
+    'Bitcoin (BTC)': "https://drive.google.com/uc?export=download&id=1IN4Z-_rZGSw798p8lZ5aNm5YRfO3umeT",
+    'Ethereum (ETH)': "https://drive.google.com/uc?export=download&id=1pLkkf88IYyqxAFfO5EtUh6uLTDhhy8k8",
+    'Litecoin (LTC)': "https://drive.google.com/uc?export=download&id=1H3lE01EEdcgOBu3T-k4DVlOz0hj4vIRq",
+    'Dogecoin (DOGE)': "https://drive.google.com/uc?export=download&id=1cVH2wKrtKDQFrioU8tPExo8aBafTOok8"
 }
 
 CRYPTO_OPTIONS = {
