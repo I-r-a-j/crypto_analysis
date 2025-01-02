@@ -437,29 +437,5 @@ def main():
         st.error(f"Error loading prediction model: {str(e)}")
         st.warning("Price predictions are temporarily unavailable. Please try again later.")
     
-    # [Rest of the visualization code remains the same...]
-    
-    # Candlestick Chart Section
-    st.header("Price Chart")
-    candlestick_fig = create_candlestick_chart(data, f"{selected_crypto} Price Chart")
-    st.plotly_chart(candlestick_fig, use_container_width=True)
-    
-    # Technical Analysis Section
-    st.header("Technical Analysis")
-    indicator = st.selectbox(
-        'Select Technical Indicator',
-        ['Moving Average', 'RSI', 'MACD', 'Bollinger Bands']
-    )
-    
-    # Parameter selection based on indicator
-    params = {}
-    if indicator in ['Moving Average', 'RSI', 'Bollinger Bands']:
-        window = st.slider(f'Select {indicator} Window', 5, 50, 20)
-        params['window'] = window
-    
-    # Create and display technical chart
-    technical_fig = create_technical_chart(data, indicator, params)
-    st.plotly_chart(technical_fig, use_container_width=True)
-
 if __name__ == "__main__":
     main()
