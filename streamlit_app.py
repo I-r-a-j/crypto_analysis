@@ -21,10 +21,6 @@ MODEL_URLS = {
     'Ethereum (ETH)': "https://drive.google.com/uc?export=download&id=1-2_k4Fb4WE4nbe6Pda_d4zrtKatS_go6",
     'Litecoin (LTC)': "https://drive.google.com/uc?export=download&id=1-29MOFJuJm3GLSAlKQXSmUXCAOEBOivE",
     'Dogecoin (DOGE)': "https://drive.google.com/uc?export=download&id=1-0uED4tgHItADz9FAZB8LWMhtkThjjDo"
-    'Bitcoin (BTC)': "https://drive.google.com/uc?export=download&id=1nSLM7rgIzAusqV6tDyOBjpoccNhdMad6",
-    'Ethereum (ETH)': "https://drive.google.com/uc?export=download&id=1-BgXrWT9cqD6oG2zyKrBygP7EvVTCnp8",
-    'Litecoin (LTC)': "https://drive.google.com/uc?export=download&id=1-8GOhS1Gz8j9hBTB0FJ1F5ZMMEA6bh7C",
-    'Dogecoin (DOGE)': "https://drive.google.com/uc?export=download&id=1-7WoHhKSF6vEZdnB_gbi5MGBz8k4-pqo"
 }
 
 CRYPTO_OPTIONS = {
