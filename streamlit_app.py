@@ -337,7 +337,7 @@ def main():
             'Date': future_dates.date,
             'Predicted Price (USD)': future_close,
         })
-        future_df = future_df.set_index('Date')
+        future_df = future_df.iloc[1:].set_index('Date')  # Skip first row (first row is today info)
 
         # Calculate daily change percentages for predictions
         current_price = data['Close'].iloc[-1]
