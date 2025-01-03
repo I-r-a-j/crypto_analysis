@@ -290,18 +290,6 @@ def main():
     st.header("Market Information")
     market_info = get_detailed_market_info(coin_info)
 
-    # Create three columns for market info
-    col1, col2, col3 = st.columns(3)
-
-    with col1:
-        st.metric("Current Price", f"${market_info['Current Price (USD)']:,.2f}", 
-                 f"{market_info['24h Change (%)']:.2f}%")
-    with col2:
-        st.metric("Market Cap", f"${market_info['Market Cap (USD)']:,.0f}", 
-                 f"Rank: {market_info['Market Cap Rank']}")
-    with col3:
-        st.metric("24h Volume", f"${market_info['24h Volume']:,.0f}")
-
     # Recent Price Data Table
     st.subheader(f"Last 5 Days Data for {selected_crypto}")
     recent_data = data.tail(5)[['Date', 'Close', 'Volume', 'Price_Change', 'Market_Cap']].copy()
