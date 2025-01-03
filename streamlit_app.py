@@ -13,7 +13,7 @@ cg = CoinGeckoAPI()
 # Constants
 START = (date.today() - timedelta(days=365)).strftime("%Y-%m-%d")
 TODAY = date.today().strftime("%Y-%m-%d")
-PREDICTION_PERIOD = 5
+PREDICTION_PERIOD = 6
 
 # Configuration dictionaries
 MODEL_URLS = {
@@ -304,7 +304,7 @@ def main():
     }))
 
     # Price Prediction Section
-    st.subheader(f"Price Predictions for Next {PREDICTION_PERIOD} Days")
+    st.subheader(f"Price Predictions for Next 5 Days")
     try:
         # Load and prepare model
         with st.spinner('Loading prediction model...'):
