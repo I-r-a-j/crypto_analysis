@@ -243,6 +243,39 @@ def create_technical_chart(data, indicator, params=None):
 
     return fig
 
+
+
+@st.cache_resource
+def load_model(url):
+    """Download and load the model from Google Drive"""
+    response = requests.get(url)
+    with open("crypto_model.pkl", "wb") as file:
+        file.write(response.content)
+
+    with open("crypto_model.pkl", "rb") as file:
+        model = pickle.load(file)
+
+    return model
+
+def prepare_prediction_features(data):
+    """Prepare features for prediction"""
+    df_train = data[['Date', 'Close']].rename(columns={"Date": "ds", "Close": "y"})
+
+    # Feature Engineering
+    df_train['SMA_10'] = df_train['y'].rolling(window=10).mean()
+    df_train['SMA_30'] = df_train['y'].rolling(window=30).mean()
+    df_train['EMA_10'] = df_train['y'].ewm(span=10, adjust=False).mean()
+    df_train['EMA_30'] = df_train['y'].ewm(span=30, adjust=False).mean()
+
+    # Add date features
+    df_train['day'] = df_train['ds'].dt.day
+    df_train['month'] = df_train['ds'].dt.month
+    df_train['year'] = df_train['ds'].dt.year
+
+    # Drop rows with NaN values
+    return df_train.dropna()
+
+
 def main():
     st.title("Cryptocurrency Analysis Dashboard")
 
@@ -378,3 +411,6 @@ def main():
     # Create and display technical chart
     technical_fig = create_technical_chart(data, indicator, params)
     st.plotly_chart(technical_fig, use_container_width=True)
+
+if __name__ == "__main__":
+    main()
