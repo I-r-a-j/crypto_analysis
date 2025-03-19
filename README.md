@@ -8,6 +8,8 @@ Welcome to the Cryptocurrency Analysis Dashboard, a powerful Streamlit-based app
 
 You can explore the live app here: [https://crypto-analysis.streamlit.app/]
 
+Also see the video about how I built this project: [https://aparat.com/v/qnf275y]
+
 **Features**
 
 Candlestick Chart: Visualize the price movements of selected cryptocurrencies with interactive candlestick charts.
