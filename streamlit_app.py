@@ -8,6 +8,8 @@ from datetime import date, timedelta
 from pycoingecko import CoinGeckoAPI
 import tempfile
 import os
+from io import BytesIO
+from joblib import load
 
 # Initialize CoinGecko API client
 cg = CoinGeckoAPI()
@@ -19,10 +21,10 @@ PREDICTION_PERIOD = 6
 
 # Configuration dictionaries
 MODEL_URLS = {
-    'Bitcoin (BTC)': "https://raw.githubusercontent.com/I-r-a-j/crypto_analysis/main/models/BTC_USD_model.pkl",
-    'Ethereum (ETH)': "https://raw.githubusercontent.com/I-r-a-j/crypto_analysis/main/models/ETH_USD_model.pkl",
-    'Litecoin (LTC)': "https://raw.githubusercontent.com/I-r-a-j/crypto_analysis/main/models/LTC_USD_model.pkl",
-    'Dogecoin (DOGE)': "https://raw.githubusercontent.com/I-r-a-j/crypto_analysis/main/models/DOGE_USD_model.pkl"
+    'Bitcoin (BTC)': "https://raw.githubusercontent.com/I-r-a-j/crypto_analysis/main/models/BTC_USD_model.joblib",
+    'Ethereum (ETH)': "https://raw.githubusercontent.com/I-r-a-j/crypto_analysis/main/models/ETH_USD_model.joblib",
+    'Litecoin (LTC)': "https://raw.githubusercontent.com/I-r-a-j/crypto_analysis/main/models/LTC_USD_model.joblib",
+    'Dogecoin (DOGE)': "https://raw.githubusercontent.com/I-r-a-j/crypto_analysis/main/models/DOGE_USD_model.joblib"
 }
 
 CRYPTO_OPTIONS = {
@@ -247,15 +249,19 @@ def create_technical_chart(data, indicator, params=None):
 
 @st.cache_resource
 def load_model(url):
-    """Download and load the model from GitHub with proper binary handling"""
+    """Download and load the model using joblib"""
     try:
-        # Add headers and use stream=True for binary files
-        headers = {
-            'User-Agent': 'Mozilla/5.0',
-            'Accept': 'application/octet-stream'
-        }
-        response = requests.get(url, headers=headers, stream=True)
+        headers = {'User-Agent': 'Mozilla/5.0'}
+        response = requests.get(url, headers=headers)
         response.raise_for_status()
+        
+        # Load model directly from bytes
+        model = load(BytesIO(response.content))
+        return model
+        
+    except Exception as e:
+        st.error(f"Model loading failed: {str(e)}")
+        return None
         
         # Use a temporary file to ensure proper binary handling
         with tempfile.NamedTemporaryFile(delete=False, suffix='.pkl') as tmp_file:
