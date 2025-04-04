@@ -1,11 +1,11 @@
- import streamlit as st
- import pandas as pd
- import numpy as np
- import requests
- import pickle
- import plotly.graph_objects as go
- from datetime import date, timedelta
- from pycoingecko import CoinGeckoAPI
+import streamlit as st
+import pandas as pd
+import numpy as np
+import requests
+import pickle
+import plotly.graph_objects as go
+from datetime import date, timedelta
+from pycoingecko import CoinGeckoAPI
  
  # Initialize CoinGecko API client
  cg = CoinGeckoAPI()
