@@ -5,3 +5,5 @@ pycoingecko
 requests
 numpy
 scikit-learn
+joblib
+io
