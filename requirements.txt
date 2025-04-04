@@ -1,8 +1,8 @@
 streamlit
-pandas
-plotly
-pycoingecko
-requests
-numpy
-scikit-learn
-joblib
+ pandas
+ plotly
+ pycoingecko
+ requests
+ numpy
+ scikit-learn
+ tradingview_ta
