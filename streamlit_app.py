@@ -21,10 +21,10 @@ PREDICTION_PERIOD = 6
 
 # Configuration dictionaries
 MODEL_URLS = {
-    'Bitcoin (BTC)': "https://raw.githubusercontent.com/I-r-a-j/crypto_analysis/main/models/BTC_USD_model.joblib",
-    'Ethereum (ETH)': "https://raw.githubusercontent.com/I-r-a-j/crypto_analysis/main/models/ETH_USD_model.joblib",
-    'Litecoin (LTC)': "https://raw.githubusercontent.com/I-r-a-j/crypto_analysis/main/models/LTC_USD_model.joblib",
-    'Dogecoin (DOGE)': "https://raw.githubusercontent.com/I-r-a-j/crypto_analysis/main/models/DOGE_USD_model.joblib"
+    'Bitcoin (BTC)': "https://raw.githubusercontent.com/I-r-a-j/crypto_analysis/main/models/BTC_USD_model.pkl",
+    'Ethereum (ETH)': "https://raw.githubusercontent.com/I-r-a-j/crypto_analysis/main/models/ETH_USD_model.pkl",
+    'Litecoin (LTC)': "https://raw.githubusercontent.com/I-r-a-j/crypto_analysis/main/models/LTC_USD_model.pkl",
+    'Dogecoin (DOGE)': "https://raw.githubusercontent.com/I-r-a-j/crypto_analysis/main/models/DOGE_USD_model.pkl"
 }
 
 CRYPTO_OPTIONS = {
@@ -249,14 +249,24 @@ def create_technical_chart(data, indicator, params=None):
 
 @st.cache_resource
 def load_model(url):
-    """Download and load the model using joblib"""
+    """Download and load the model"""
     try:
         headers = {'User-Agent': 'Mozilla/5.0'}
-        response = requests.get(url, headers=headers)
+        response = requests.get(url, headers=headers, stream=True)
         response.raise_for_status()
         
-        # Load model directly from bytes
-        model = load(BytesIO(response.content))
+        # Use a temporary file
+        with tempfile.NamedTemporaryFile(delete=False, suffix='.pkl') as tmp_file:
+            for chunk in response.iter_content(chunk_size=8192):
+                tmp_file.write(chunk)
+            tmp_path = tmp_file.name
+        
+        # Load the model
+        with open(tmp_path, 'rb') as file:
+            model = pickle.load(file)
+        
+        # Clean up
+        os.unlink(tmp_path)
         return model
         
     except Exception as e:
