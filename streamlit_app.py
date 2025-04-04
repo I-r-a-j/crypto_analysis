@@ -6,6 +6,8 @@ import pickle
 import plotly.graph_objects as go
 from datetime import date, timedelta
 from pycoingecko import CoinGeckoAPI
+import tempfile
+import os
 
 # Initialize CoinGecko API client
 cg = CoinGeckoAPI()
@@ -243,19 +245,35 @@ def create_technical_chart(data, indicator, params=None):
 
     return fig
 
-
-
 @st.cache_resource
 def load_model(url):
-    """Download and load the model from Google Drive"""
-    response = requests.get(url)
-    with open("crypto_model.pkl", "wb") as file:
-        file.write(response.content)
-
-    with open("crypto_model.pkl", "rb") as file:
-        model = pickle.load(file)
-
-    return model
+    """Download and load the model from GitHub with proper binary handling"""
+    try:
+        # Add headers and use stream=True for binary files
+        headers = {
+            'User-Agent': 'Mozilla/5.0',
+            'Accept': 'application/octet-stream'
+        }
+        response = requests.get(url, headers=headers, stream=True)
+        response.raise_for_status()
+        
+        # Use a temporary file to ensure proper binary handling
+        with tempfile.NamedTemporaryFile(delete=False, suffix='.pkl') as tmp_file:
+            for chunk in response.iter_content(chunk_size=8192):
+                tmp_file.write(chunk)
+            tmp_path = tmp_file.name
+        
+        # Load the model
+        with open(tmp_path, 'rb') as file:
+            model = pickle.load(file)
+        
+        # Clean up
+        os.unlink(tmp_path)
+        return model
+        
+    except Exception as e:
+        st.error(f"Model loading failed: {str(e)}")
+        return None
 
 def prepare_prediction_features(data):
     """Prepare features for prediction"""
@@ -274,7 +292,6 @@ def prepare_prediction_features(data):
 
     # Drop rows with NaN values
     return df_train.dropna()
-
 
 def main():
     st.title("Cryptocurrency Analysis Dashboard")
@@ -305,67 +322,68 @@ def main():
 
     # Price Prediction Section
     st.subheader(f"Price Predictions for Next 5 Days")
-    try:
-        # Load and prepare model
-        with st.spinner('Loading prediction model...'):
-            model = load_model(MODEL_URLS[selected_crypto])
+    with st.spinner('Loading prediction model...'):
+        model = load_model(MODEL_URLS[selected_crypto])
 
-        # Prepare features for prediction
-        df_train = prepare_prediction_features(data)
+    if model is not None:
+        try:
+            # Prepare features for prediction
+            df_train = prepare_prediction_features(data)
 
-        # Prepare future features
-        future_dates = pd.date_range(TODAY, periods=PREDICTION_PERIOD, freq='D')
-        last_row = df_train.tail(1)
+            # Prepare future features
+            future_dates = pd.date_range(TODAY, periods=PREDICTION_PERIOD, freq='D')
+            last_row = df_train.tail(1)
 
-        future_features = pd.DataFrame({
-            'day': [d.day for d in future_dates],
-            'month': [d.month for d in future_dates],
-            'year': [d.year for d in future_dates],
-            'SMA_10': [last_row['SMA_10'].values[0]] * PREDICTION_PERIOD,
-            'SMA_30': [last_row['SMA_30'].values[0]] * PREDICTION_PERIOD,
-            'EMA_10': [last_row['EMA_10'].values[0]] * PREDICTION_PERIOD,
-            'EMA_30': [last_row['EMA_30'].values[0]] * PREDICTION_PERIOD
-        })
+            future_features = pd.DataFrame({
+                'day': [d.day for d in future_dates],
+                'month': [d.month for d in future_dates],
+                'year': [d.year for d in future_dates],
+                'SMA_10': [last_row['SMA_10'].values[0]] * PREDICTION_PERIOD,
+                'SMA_30': [last_row['SMA_30'].values[0]] * PREDICTION_PERIOD,
+                'EMA_10': [last_row['EMA_10'].values[0]] * PREDICTION_PERIOD,
+                'EMA_30': [last_row['EMA_30'].values[0]] * PREDICTION_PERIOD
+            })
 
-        # Make predictions
-        features_order = ['SMA_10', 'SMA_30', 'EMA_10', 'EMA_30', 'day', 'month', 'year']
-        future_features = future_features[features_order]
-        future_close = model.predict(future_features)
+            # Make predictions
+            features_order = ['SMA_10', 'SMA_30', 'EMA_10', 'EMA_30', 'day', 'month', 'year']
+            future_features = future_features[features_order]
+            future_close = model.predict(future_features)
 
-        # Create and display prediction DataFrame
-        future_df = pd.DataFrame({
-            'Date': future_dates.date,
-            'Predicted Price (USD)': future_close,
-        })
-        future_df = future_df.iloc[1:].set_index('Date')  # Skip first row (first row is today info)
+            # Create and display prediction DataFrame
+            future_df = pd.DataFrame({
+                'Date': future_dates.date,
+                'Predicted Price (USD)': future_close,
+            })
+            future_df = future_df.iloc[1:].set_index('Date')  # Skip first row (first row is today info)
 
-        # Calculate daily change percentages for predictions
-        current_price = data['Close'].iloc[-1]
-        future_df['Predicted Change (%)'] = 0.0
-        future_df.iloc[0, future_df.columns.get_loc('Predicted Change (%)')] = (
-            (future_df['Predicted Price (USD)'].iloc[0] - current_price) / current_price * 100
-        )
-        for i in range(1, len(future_df)):
-            future_df.iloc[i, future_df.columns.get_loc('Predicted Change (%)')] = (
-                (future_df['Predicted Price (USD)'].iloc[i] - future_df['Predicted Price (USD)'].iloc[i-1]) 
-                / future_df['Predicted Price (USD)'].iloc[i-1] * 100
+            # Calculate daily change percentages for predictions
+            current_price = data['Close'].iloc[-1]
+            future_df['Predicted Change (%)'] = 0.0
+            future_df.iloc[0, future_df.columns.get_loc('Predicted Change (%)')] = (
+                (future_df['Predicted Price (USD)'].iloc[0] - current_price) / current_price * 100
             )
+            for i in range(1, len(future_df)):
+                future_df.iloc[i, future_df.columns.get_loc('Predicted Change (%)')] = (
+                    (future_df['Predicted Price (USD)'].iloc[i] - future_df['Predicted Price (USD)'].iloc[i-1]) 
+                    / future_df['Predicted Price (USD)'].iloc[i-1] * 100
+                )
 
-        # Display prediction table with formatting
-        st.dataframe(future_df.style.format({
-            'Predicted Price (USD)': '${:,.2f}',
-            'Predicted Change (%)': '{:+.2f}%'
-        }))
+            # Display prediction table with formatting
+            st.dataframe(future_df.style.format({
+                'Predicted Price (USD)': '${:,.2f}',
+                'Predicted Change (%)': '{:+.2f}%'
+            }))
 
-        # Add a note about predictions
-        st.caption("""
-            Note: Predictions are based on historical data and technical indicators. 
-            Market conditions can change rapidly, and actual prices may vary significantly from predictions.
-            """)
+            # Add a note about predictions
+            st.caption("""
+                Note: Predictions are based on historical data and technical indicators. 
+                Market conditions can change rapidly, and actual prices may vary significantly from predictions.
+                """)
 
-    except Exception as e:
-        st.error(f"Error loading prediction model: {str(e)}")
-        st.warning("Price predictions are temporarily unavailable. Please try again later.")
+        except Exception as e:
+            st.error(f"Prediction error: {str(e)}")
+    else:
+        st.warning("Could not load prediction model. Showing historical data only.")
 
     # Candlestick Chart Section
     st.header("Price Chart")
