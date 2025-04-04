@@ -6,4 +6,3 @@ requests
 numpy
 scikit-learn
 tempfile
-os
