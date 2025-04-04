@@ -2,41 +2,33 @@ name: Daily Crypto Model Training
 
 on:
   schedule:
-    - cron: '0 2 * * *'
-  workflow_dispatch:
+    - cron: '0 12 * * *'  # Runs at 12:00 UTC every day
+  workflow_dispatch:  # Allows manual triggering
 
 jobs:
   train-models:
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
-      pull-requests: write
     
     steps:
-    - name: Checkout repository
-      uses: actions/checkout@v3
-      
+    - uses: actions/checkout@v2
+    
     - name: Set up Python
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v2
       with:
         python-version: '3.9'
-        
+    
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
         pip install yfinance pandas numpy scikit-learn joblib
-        
-    - name: Run model training script
-      run: python model_generator.py
-      
-    - name: Create Pull Request
-      uses: peter-evans/create-pull-request@v5
-      with:
-        token: ${{ secrets.GITHUB_TOKEN }}
-        commit-message: Update crypto models - $(date +%Y-%m-%d)
-        title: 'Daily Crypto Model Update'
-        body: |
-          Automated crypto model update from GitHub Actions
-          - Updated ML models for cryptocurrencies
-        branch: model-update-$(date +%s)
-        base: main
+    
+    - name: Train and save models
+      run: python crypto_model_training.py
+    
+    - name: Commit and push changes
+      run: |
+        git config --global user.name "GitHub Actions"
+        git config --global user.email "actions@github.com"
+        git add models/
+        git commit -m "Daily model update: $(date +'%Y-%m-%d')" || echo "No changes to commit"
+        git push
