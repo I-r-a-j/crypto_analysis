@@ -5,7 +5,7 @@ import pandas as pd
 import yfinance as yf
 from sklearn.model_selection import train_test_split
 from sklearn.linear_model import LinearRegression
-import joblib
+from joblib import dump
 
 # Set start date for data and today's date
 START = "2015-01-01"
@@ -77,8 +77,8 @@ def train_and_save_model(symbol):
     model_path = os.path.join(MODELS_DIR, model_filename)
     
     # Save using joblib which is more efficient for sklearn models
-    joblib.dump(model, model_path)
-    print(f"Trained model for {symbol} saved/overwritten as {model_path}")
+    model_filename = f'{symbol}_model.joblib'  # Changed extension
+    dump(model, model_filename)  # Using joblib.dump
 
     def generate_future_features(last_known_data, future_dates):
         # Create lists of repeated values for the moving averages
