@@ -1,12 +1,11 @@
 # crypto_model_training.py
 import os
 !pip install yfinance pandas numpy scikit-learn joblib
-from datetime import date, datetime
+from datetime import date
 import pandas as pd
 import yfinance as yf
 from sklearn.model_selection import train_test_split
 from sklearn.linear_model import LinearRegression
-import pickle
 import joblib
 
 # Set start date for data and today's date
@@ -74,14 +73,13 @@ def train_and_save_model(symbol):
     # Train the model
     model.fit(X_train, y_train)
 
-    # Save the model with timestamp in the filename
-    timestamp = datetime.now().strftime("%Y%m%d")
-    model_filename = f"{symbol.replace('-', '_')}_model_{timestamp}.pkl"
+    # Save the model - overwriting previous version
+    model_filename = f"{symbol.replace('-', '_')}_model.pkl"
     model_path = os.path.join(MODELS_DIR, model_filename)
     
     # Save using joblib which is more efficient for sklearn models
     joblib.dump(model, model_path)
-    print(f"Trained model for {symbol} saved as {model_path}")
+    print(f"Trained model for {symbol} saved/overwritten as {model_path}")
 
     def generate_future_features(last_known_data, future_dates):
         # Create lists of repeated values for the moving averages
