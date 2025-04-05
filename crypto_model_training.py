@@ -1,128 +1,156 @@
-# crypto_model_training.py
 import os
-from datetime import date
+from datetime import date, datetime, timedelta
 import pandas as pd
 import yfinance as yf
 from sklearn.model_selection import train_test_split
 from sklearn.linear_model import LinearRegression
-import joblib
+import pickle
+import logging
+from pathlib import Path
 
-# Set start date for data and today's date
-START = "2015-01-01"
-TODAY = date.today().strftime("%Y-%m-%d")
+# Configuration
+START_DATE = "2015-01-01"
+PREDICTION_DAYS = 5
+CRYPTO_SYMBOLS = ['BTC-USD', 'ETH-USD', 'LTC-USD', 'DOGE-USD']
+MODELS_DIR = "models_with_predictions"
+LOG_FILE = "crypto_predictions.log"
 
-# Fixed prediction period of 5 days
-period = 5
+# Set up logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.FileHandler(LOG_FILE),
+        logging.StreamHandler()
+    ]
+)
 
-# Define a list of crypto symbols (BTC, ETH, LTC, DOGE)
-crypto_symbols = ['BTC-USD', 'ETH-USD', 'LTC-USD', 'DOGE-USD']
-
-# Define the models directory path (relative to the script location)
-MODELS_DIR = "models"
-
-def ensure_models_directory_exists():
-    """Create the models directory if it doesn't exist"""
-    if not os.path.exists(MODELS_DIR):
-        os.makedirs(MODELS_DIR)
-        print(f"Created directory: {MODELS_DIR}")
+def create_directories():
+    """Create required directories if they don't exist"""
+    Path(MODELS_DIR).mkdir(exist_ok=True)
 
 def load_data(ticker):
-    data = yf.download(ticker, START, TODAY)
-    # Reset index to get Date as a column
-    data.reset_index(inplace=True)
-    return data
+    """Load historical data for a given ticker"""
+    try:
+        data = yf.download(ticker, START_DATE, date.today().strftime("%Y-%m-%d"))
+        data.reset_index(inplace=True)
+        return data
+    except Exception as e:
+        logging.error(f"Error loading data for {ticker}: {str(e)}")
+        return None
 
-def train_and_save_model(symbol):
-    # Load data for the symbol
-    data = load_data(symbol)
-
-    # Find the correct 'Close' column name
+def prepare_features(data):
+    """Prepare features for the model"""
     close_col = 'Adj Close' if 'Adj Close' in data.columns else 'Close'
-
-    # Prepare data for forecasting
-    df_train = pd.DataFrame()
-    df_train['ds'] = data['Date']
-    df_train['y'] = data[close_col]
-
-    # Feature Engineering
-    df_train['SMA_10'] = df_train['y'].rolling(window=10).mean()
-    df_train['SMA_30'] = df_train['y'].rolling(window=30).mean()
-    df_train['EMA_10'] = df_train['y'].ewm(span=10, adjust=False).mean()
-    df_train['EMA_30'] = df_train['y'].ewm(span=30, adjust=False).mean()
-
-    # Add date-based features
-    df_train['day'] = pd.to_datetime(df_train['ds']).dt.day
-    df_train['month'] = pd.to_datetime(df_train['ds']).dt.month
-    df_train['year'] = pd.to_datetime(df_train['ds']).dt.year
-
-    # Drop rows with NaN values
-    df_train = df_train.dropna()
-
-    # Define feature columns
-    feature_columns = ['SMA_10', 'SMA_30', 'EMA_10', 'EMA_30', 'day', 'month', 'year']
-
-    # Train-test split
-    X = df_train[feature_columns]
-    y = df_train['y']
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
-
-    # Define the Linear Regression model
-    model = LinearRegression()
-
-    # Train the model
-    model.fit(X_train, y_train)
-
-    # Save the model - overwriting previous version
-    model_filename = f"{symbol.replace('-', '_')}_model.pkl"
-    model_path = os.path.join(MODELS_DIR, model_filename)
     
-    # Save using joblib which is more efficient for sklearn models
-    joblib.dump(model, model_path)
-    print(f"Trained model for {symbol} saved/overwritten as {model_path}")
+    df = pd.DataFrame()
+    df['ds'] = data['Date']
+    df['y'] = data[close_col]
+    
+    # Technical indicators
+    df['SMA_10'] = df['y'].rolling(window=10).mean()
+    df['SMA_30'] = df['y'].rolling(window=30).mean()
+    df['EMA_10'] = df['y'].ewm(span=10, adjust=False).mean()
+    df['EMA_30'] = df['y'].ewm(span=30, adjust=False).mean()
+    
+    # Date features
+    df['day'] = pd.to_datetime(df['ds']).dt.day
+    df['month'] = pd.to_datetime(df['ds']).dt.month
+    df['year'] = pd.to_datetime(df['ds']).dt.year
+    
+    return df.dropna()
 
-    def generate_future_features(last_known_data, future_dates):
-        # Create lists of repeated values for the moving averages
-        n_dates = len(future_dates)
-        future_features = pd.DataFrame({
-            'day': [d.day for d in future_dates],
-            'month': [d.month for d in future_dates],
-            'year': [d.year for d in future_dates],
-            'SMA_10': [last_known_data['SMA_10']] * n_dates,
-            'SMA_30': [last_known_data['SMA_30']] * n_dates,
-            'EMA_10': [last_known_data['EMA_10']] * n_dates,
-            'EMA_30': [last_known_data['EMA_30']] * n_dates
-        })
-        return future_features
+def train_model(X_train, y_train):
+    """Train and return a Linear Regression model"""
+    model = LinearRegression()
+    model.fit(X_train, y_train)
+    return model
 
-    # Predicting future data
-    last_known_data = df_train.iloc[-1]
-    future_dates = pd.date_range(df_train['ds'].iloc[-1] + pd.Timedelta(days=1),
-                                periods=period, freq='D')
-    future_features = generate_future_features(last_known_data, future_dates)
+def generate_future_features(last_known_data, future_dates, feature_columns):
+    """Generate features for future prediction dates"""
+    n_dates = len(future_dates)
+    return pd.DataFrame({
+        'day': [d.day for d in future_dates],
+        'month': [d.month for d in future_dates],
+        'year': [d.year for d in future_dates],
+        'SMA_10': [last_known_data['SMA_10']] * n_dates,
+        'SMA_30': [last_known_data['SMA_30']] * n_dates,
+        'EMA_10': [last_known_data['EMA_10']] * n_dates,
+        'EMA_30': [last_known_data['EMA_30']] * n_dates
+    })[feature_columns]
 
-    # Ensure correct column order
-    future_features = future_features[feature_columns]
+def make_predictions(model, last_known_data, feature_columns):
+    """Generate predictions for the next PREDICTION_DAYS days"""
+    last_date = pd.to_datetime(last_known_data['ds'])
+    future_dates = [last_date + timedelta(days=i) for i in range(1, PREDICTION_DAYS + 1)]
+    
+    future_features = generate_future_features(last_known_data, future_dates, feature_columns)
+    future_prices = model.predict(future_features)
+    
+    predictions = pd.DataFrame({
+        'Date': future_dates,
+        'Predicted_Close': future_prices,
+        'Prediction_Date': datetime.now().strftime("%Y-%m-%d")
+    })
+    predictions.set_index('Date', inplace=True)
+    
+    return predictions
 
-    # Predict future prices
-    future_close = model.predict(future_features)
+def save_model_with_predictions(model, predictions, symbol):
+    """Save trained model with integrated predictions as a single file"""
+    model_data = {
+        'model': model,
+        'predictions': predictions,
+        'last_trained': datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        'prediction_days': PREDICTION_DAYS,
+        'symbol': symbol
+    }
+    
+    model_path = os.path.join(MODELS_DIR, f"{symbol}_model_with_predictions.pkl")
+    with open(model_path, 'wb') as f:
+        pickle.dump(model_data, f)
+    logging.info(f"Model with predictions saved to {model_path}")
 
-    # Create predictions DataFrame
-    future_df = pd.DataFrame({'Date': future_dates, 'Predicted Close': future_close})
-    future_df.set_index('Date', inplace=True)
+def process_crypto(symbol):
+    """Full processing pipeline for a single cryptocurrency"""
+    logging.info(f"Processing {symbol}...")
+    
+    # Load and prepare data
+    data = load_data(symbol)
+    if data is None:
+        return
+        
+    df = prepare_features(data)
+    if df.empty:
+        logging.warning(f"No data available for {symbol} after feature preparation")
+        return
+    
+    # Split data and train model
+    feature_columns = ['SMA_10', 'SMA_30', 'EMA_10', 'EMA_30', 'day', 'month', 'year']
+    X = df[feature_columns]
+    y = df['y']
+    
+    X_train, _, y_train, _ = train_test_split(X, y, test_size=0.2, random_state=42)
+    model = train_model(X_train, y_train)
+    
+    # Generate predictions
+    last_known_data = df.iloc[-1]
+    predictions = make_predictions(model, last_known_data, feature_columns)
+    
+    # Save model with integrated predictions
+    save_model_with_predictions(model, predictions, symbol)
+    
+    logging.info(f"Completed processing for {symbol}\n")
 
-    print(f"Forecast data (Next 5 days) for {symbol}:")
-    print(future_df)
+def main():
+    """Main execution function"""
+    logging.info("Starting crypto prediction pipeline")
+    create_directories()
+    
+    for symbol in CRYPTO_SYMBOLS:
+        process_crypto(symbol)
+    
+    logging.info("Prediction pipeline completed")
 
 if __name__ == "__main__":
-    # Ensure the models directory exists
-    ensure_models_directory_exists()
-    
-    # Train models for all symbols
-    for symbol in crypto_symbols:
-        try:
-            train_and_save_model(symbol)
-        except Exception as e:
-            print(f"Error training model for {symbol}: {str(e)}")
-            continue
-    
-    print("Model training completed for all cryptocurrencies.")
+    main()
