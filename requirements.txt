@@ -1,4 +1,4 @@
-streamlit
+ streamlit
  pandas
  plotly
  pycoingecko
@@ -6,3 +6,4 @@ streamlit
  numpy
  scikit-learn
  tradingview_ta
+ yfinance
