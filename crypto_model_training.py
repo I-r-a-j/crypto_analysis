@@ -100,6 +100,12 @@ def train_and_save_model(symbol):
     print(f"Forecast data (Next 5 days) for {symbol}:")
     print(future_df)
 
-# Train models for all symbols
-for symbol in crypto_symbols:
-    train_and_save_model(symbol)
+    # Save predictions to CSV
+    prediction_filename = f'{symbol}_predictions.csv'
+    future_df.to_csv(prediction_filename)
+    print(f"Predictions saved to {prediction_filename}")
+
+if __name__ == "__main__":
+    # Train models for all symbols
+    for symbol in crypto_symbols:
+        train_and_save_model(symbol)
