@@ -1,8 +1,8 @@
-name: Crypto Predictions (5-min Cron)
+name: Crypto Predictions
 
 on:
   schedule:
-    - cron: "*/5 * * * *"  # Runs every 5 minutes
+    - cron: "*/5 * * * *"  # Every 5 minutes
   workflow_dispatch:
 
 jobs:
@@ -10,34 +10,43 @@ jobs:
     runs-on: ubuntu-latest
     
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
+    
+    - name: Ensure models directory exists
+      run: |
+        mkdir -p models
+        echo "Ensured models directory exists"
+        
+    - name: Clear only model files (keep directory)
+      run: |
+        if [ -d "models" ]; then
+          find models -type f -name "*.pkl" -delete
+          find models -type f -name "*.csv" -delete
+          echo "Deleted only .pkl and .csv files, kept models directory"
+        else
+          echo "Models directory didn't exist (now created)"
+        fi
     
     - name: Set up Python
-      uses: actions/setup-python@v2
+      uses: actions/setup-python@v4
       with:
-        python-version: '3.8'
-    
-    - name: Clear previous model files
-      run: |
-        # Only delete contents (keep folder structure)
-        find ./models -mindepth 1 -delete
-        echo "Previous model files cleared (kept ./models directory)"
+        python-version: '3.10'
     
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
         pip install -r requirements.txt
     
-    - name: Generate new predictions
-      run: python crypto_model_training.py  # Updated script name
+    - name: Run training script
+      run: python crypto_model_training.py
     
-    - name: Commit and push updates
+    - name: Commit results
       run: |
-        git config --local user.email "github-actions@example.com"
-        git config --local user.name "GitHub Actions"
-        git add ./models/
-        if [ -n "$(git status --porcelain ./models)" ]; then
-          git commit -m "[Auto] Updated models/predictions $(date +'%Y-%m-%d %H:%M:%S')"
+        git config --global user.email "actions@github.com"
+        git config --global user.name "GitHub Actions"
+        git add models/
+        if [ -n "$(git status --porcelain models)" ]; then
+          git commit -m "Update models: $(date +'%Y-%m-%d %H:%M:%S')"
           git push
         else
           echo "No changes to commit"
