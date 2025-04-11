@@ -17,11 +17,11 @@ jobs:
       with:
         python-version: '3.8'
     
-    - name: Clear previous models
+    - name: Clear previous model files
       run: |
-        mkdir -p ./models
-        rm -rf ./models/*  # Force-clear the directory
-        echo "Models directory cleaned"
+        # Only delete contents (keep folder structure)
+        find ./models -mindepth 1 -delete
+        echo "Previous model files cleared (kept ./models directory)"
     
     - name: Install dependencies
       run: |
@@ -29,12 +29,16 @@ jobs:
         pip install -r requirements.txt
     
     - name: Generate new predictions
-      run: python crypto_model_training.py
+      run: python crypto_model_training.py  # Updated script name
     
     - name: Commit and push updates
       run: |
         git config --local user.email "github-actions@example.com"
         git config --local user.name "GitHub Actions"
         git add ./models/
-        git diff --cached --quiet || git commit -m "[Auto] Update models/predictions - $(date +'%Y-%m-%d %H:%M:%S')"
-        git push
+        if [ -n "$(git status --porcelain ./models)" ]; then
+          git commit -m "[Auto] Updated models/predictions $(date +'%Y-%m-%d %H:%M:%S')"
+          git push
+        else
+          echo "No changes to commit"
+        fi
