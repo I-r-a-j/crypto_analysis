@@ -29,7 +29,7 @@ jobs:
         pip install -r requirements.txt
     
     - name: Generate new predictions
-      run: python crypto_predictor.py
+      run: python crypto_model_training.py
     
     - name: Commit and push updates
       run: |
