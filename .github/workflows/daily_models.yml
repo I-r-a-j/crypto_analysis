@@ -1,0 +1,38 @@
+name: Daily Crypto Model Generation
+
+on:
+  schedule:
+    - cron: '0 0 * * *'   # Daily at midnight UTC
+  workflow_dispatch:      # Allows manual run
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+
+      - name: Run model training script
+        run: |
+          python crypto_model_training.py
+
+      - name: Commit and push updated models
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add models/**/*.pkl
+          git status  # See which files changed
+          git commit -m "Automated update: Crypto models $(date)" || exit 0  # No commit if no changes
+          git push origin main
