@@ -4,6 +4,7 @@ import yfinance as yf
 from sklearn.model_selection import train_test_split
 from sklearn.linear_model import LinearRegression
 import pickle
+import os
 
 # Set start date for data and today's date
 START = "2015-01-01"
@@ -61,14 +62,25 @@ def train_and_save_model(symbol):
     # Train the model
     model.fit(X_train, y_train)
 
+    # Map symbol to folder
+    folder_map = {
+        'BTC-USD': 'models/BTC',
+        'ETH-USD': 'models/ETH',
+        'LTC-USD': 'models/LTC',
+        'DOGE-USD': 'models/DOGE'
+    }
+    folder = folder_map[symbol]
+    model_filename = f'{folder}/{symbol.split("-")[0]}_linear_regression_model.pkl'
+
+    # Ensure the folder exists
+    os.makedirs(folder, exist_ok=True)
+
     # Save the model
-    model_filename = f'{symbol}_linear_regression_model.pkl'
     with open(model_filename, 'wb') as file:
         pickle.dump(model, file)
     print(f"Trained model for {symbol} saved as {model_filename}")
 
     def generate_future_features(last_known_data, future_dates):
-        # Create lists of repeated values for the moving averages
         n_dates = len(future_dates)
         future_features = pd.DataFrame({
             'day': [d.day for d in future_dates],
@@ -81,16 +93,12 @@ def train_and_save_model(symbol):
         })
         return future_features
 
-    # Predicting future data
+    # Predict future prices
     last_known_data = df_train.iloc[-1]
     future_dates = pd.date_range(df_train['ds'].iloc[-1] + pd.Timedelta(days=1),
                                 periods=period, freq='D')
     future_features = generate_future_features(last_known_data, future_dates)
-
-    # Ensure correct column order
-    future_features = future_features[feature_columns]
-
-    # Predict future prices
+    future_features = future_features[feature_columns]  # Ensure correct column order
     future_close = model.predict(future_features)
 
     # Create predictions DataFrame
@@ -100,12 +108,6 @@ def train_and_save_model(symbol):
     print(f"Forecast data (Next 5 days) for {symbol}:")
     print(future_df)
 
-    # Save predictions to CSV
-    prediction_filename = f'{symbol}_predictions.csv'
-    future_df.to_csv(prediction_filename)
-    print(f"Predictions saved to {prediction_filename}")
-
-if __name__ == "__main__":
-    # Train models for all symbols
-    for symbol in crypto_symbols:
-        train_and_save_model(symbol)
+# Train models for all symbols
+for symbol in crypto_symbols:
+    train_and_save_model(symbol)
